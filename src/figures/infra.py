@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import matplotlib
@@ -41,6 +42,9 @@ def make_cycle(color_cycle: list) -> Cycler:
 
 
 def setup_matplotlib_latex_font():
+    # fix latex path for my manual latex installation
+    os.environ['PATH'] = "/usr/local/texlive/2024/bin/x86_64-linux:" + os.environ['PATH']
+
     color_cycle = ["my_blue", "my_red", "my_green", "my_yellow", "my_pink", "my_teal"]
     light_color_cycle = [
         "my_light_blue",

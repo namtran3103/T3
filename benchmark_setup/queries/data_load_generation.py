@@ -47,7 +47,7 @@ def generate_sql(schema_file):
         # Generate the SQL command
         stripped_table_name = "".join(table_name.split(".")[1:]).strip('"')
         current_load_args = " " + load_args[schema_name] if schema_name in load_args else ""
-        sql_command = f"COPY {table_name} FROM '/data/{schema_name}/{stripped_table_name}.csv'{current_load_args};"
+        sql_command = f"COPY {table_name} FROM 'benchmark_setups/csvs/{schema_name}/{stripped_table_name}.csv'{current_load_args};"
         commands.append(sql_command)
 
     return commands

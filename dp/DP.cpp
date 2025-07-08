@@ -1,23 +1,23 @@
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "modernize-use-nodiscard"
 //---------------------------------------------------------------------------
-#include <cstring>
-#include <string_view>
+#include "lleaves_header.hpp"
+#include <bit>
+#include <cassert>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <cstdint>
-#include <vector>
-#include <charconv>
-#include <unordered_map>
-#include <filesystem>
-#include <cassert>
-#include <bit>
-#include <span>
-#include <cmath>
-#include <chrono>
 #include <random>
+#include <span>
+#include <string_view>
 #include <thread>
-#include "lleaves_header.hpp"
+#include <unordered_map>
+#include <vector>
+#include <LightGBM/c_api.h>
 //---------------------------------------------------------------------------
 namespace fs = std::filesystem;
 //---------------------------------------------------------------------------
@@ -131,27 +131,114 @@ void Features::print() const {
     add_to_vector(vec);
     auto& wrtr = std::cout;
     wrtr << "[";
-    for (const auto& x: vec) {
+    for (const auto& x : vec) {
         wrtr << x << ", ";
     }
     wrtr << "],\n";
 }
 //---------------------------------------------------------------------------
 struct Model {
+    BoosterHandle booster;
+    FastConfigHandle config;
     std::vector<double> data;
     std::vector<double> out;
     static constexpr uint64_t nFeatures = 110;
     uint64_t currentlyFilled = 0;
     uint64_t callsToPredict = 0;
 
-
+    void loadModel(const fs::path& path);
     void prepare();
+    void predictMany();
+    void predictManyST();
+    double predict();
     double predictCompiled();
     void predictManyCompiled();
     void resize(uint64_t n);
     double* registerFeatures(const Features& features);
     void resetInput();
 };
+//---------------------------------------------------------------------------
+void Model::loadModel(const fs::path& path) {
+    int iterations;
+    int status = LGBM_BoosterCreateFromModelfile(path.c_str(), &iterations, &booster);
+    if (status) {
+        std::cout << "Could not load model" << std::endl;
+    }
+}
+//---------------------------------------------------------------------------
+void Model::predictMany() {
+    int64_t outLen;
+    LGBM_BoosterPredictForMat(
+        booster,
+        data.data(),
+        C_API_DTYPE_FLOAT64,
+        static_cast<int>(currentlyFilled),
+        static_cast<int>(nFeatures),
+        1,
+        C_API_PREDICT_NORMAL,
+        0,
+        0,
+        "",
+        &outLen,
+        out.data());
+    assert(outLen == currentlyFilled);
+    // actually compute the correct output
+    for (uint64_t i = 0; i < currentlyFilled; ++i) {
+        // The running time in ms is exp(-y) * table_size
+        out[i] = std::exp(-out[i]) * data[i * nFeatures + 1];
+    }
+    resetInput();
+    currentlyFilled = 0;
+    ++callsToPredict;
+}
+//---------------------------------------------------------------------------
+void Model::predictManyST() {
+    int64_t outLen;
+    int previousThreadCount;
+    LGBM_GetMaxThreads(&previousThreadCount);
+    LGBM_SetMaxThreads(1);
+    LGBM_BoosterPredictForMat(
+        booster,
+        data.data(),
+        C_API_DTYPE_FLOAT64,
+        static_cast<int>(currentlyFilled),
+        static_cast<int>(nFeatures),
+        1,
+        C_API_PREDICT_NORMAL,
+        0,
+        0,
+        "",
+        &outLen,
+        out.data());
+    assert(outLen == currentlyFilled);
+    // actually compute the correct output
+    for (uint64_t i = 0; i < currentlyFilled; ++i) {
+        // The running time in ms is exp(-y) * table_size
+        out[i] = std::exp(-out[i]) * data[i * nFeatures + 1];
+    }
+    resetInput();
+    currentlyFilled = 0;
+    ++callsToPredict;
+    LGBM_SetMaxThreads(previousThreadCount);
+}
+//---------------------------------------------------------------------------
+double Model::predict() {
+    assert(config);
+    int64_t outLen;
+    LGBM_BoosterPredictForMatSingleRowFast(
+        config,
+        data.data(),
+        &outLen,
+        out.data());
+    assert(outLen == currentlyFilled);
+    // actually compute the correct output
+    // The running time in ms is exp(-y) * table_size
+    out[0] = std::exp(-out[0]) * data[1];
+    resetInput();
+    currentlyFilled = 0;
+    ++callsToPredict;
+    return out[0];
+}
 //---------------------------------------------------------------------------
 double Model::predictCompiled() {
     forest_root(data.data(), out.data(), 0, 1);
@@ -162,8 +249,7 @@ double Model::predictCompiled() {
     return out[0];
 }
 //---------------------------------------------------------------------------
-void
-processChunk(std::vector<double>& data, std::vector<double>& out, uint64_t start, uint64_t end, int nFeatures) {
+void processChunk(std::vector<double>& data, std::vector<double>& out, uint64_t start, uint64_t end, int nFeatures) {
     int nCurrent = static_cast<int>(end - start);
     forest_root(data.data(), out.data(), static_cast<int>(start), nCurrent);
     for (uint64_t i = start; i < end; ++i) {
@@ -199,6 +285,19 @@ double* Model::registerFeatures(const Features& features) {
 void Model::resetInput() {
     std::memset(data.data(), 0, data.size() * sizeof(double));
     currentlyFilled = 0;
+}
+//---------------------------------------------------------------------------
+void Model::prepare() {
+    auto status = LGBM_BoosterPredictForMatSingleRowFastInit(
+        booster,
+        C_API_PREDICT_NORMAL,
+        0,
+        0,
+        C_API_DTYPE_FLOAT64,
+        static_cast<int>(nFeatures),
+        "",
+        &config);
+    assert(!status);
 }
 //---------------------------------------------------------------------------
 struct Relation {
@@ -243,18 +342,16 @@ struct QueryGraph {
     std::vector<Relation> relations;
     std::vector<Join> joins;
     std::unordered_map<uint64_t, double> cardinalities;
-    std::vector<std::vector<const Join*> > joinLookup;
+    std::vector<std::vector<const Join*>> joinLookup;
 
     bool isConnected(uint64_t leftClass, uint64_t rightClass) const;
     void prepareLookup();
 };
 //---------------------------------------------------------------------------
 bool QueryGraph::isConnected(uint64_t leftClass, uint64_t rightClass) const {
-    auto [smaller, larger] = (std::popcount(leftClass) < std::popcount(rightClass))
-                                 ? std::pair{leftClass, rightClass}
-                                 : std::pair{rightClass, leftClass};
+    auto [smaller, larger] = (std::popcount(leftClass) < std::popcount(rightClass)) ? std::pair{leftClass, rightClass} : std::pair{rightClass, leftClass};
     for (auto it = BitsetIterator{smaller}, end = BitsetIterator::end(); it != end; ++it) {
-        for (const auto& j: joinLookup[*it]) {
+        for (const auto& j : joinLookup[*it]) {
             bool swapped;
             if (j->canJoin(leftClass, rightClass, swapped)) {
                 return true;
@@ -266,7 +363,7 @@ bool QueryGraph::isConnected(uint64_t leftClass, uint64_t rightClass) const {
 //---------------------------------------------------------------------------
 void QueryGraph::prepareLookup() {
     joinLookup.resize(relations.size());
-    for (const auto& j: joins) {
+    for (const auto& j : joins) {
         joinLookup[std::countr_zero(j.left)].push_back(&j);
         joinLookup[std::countr_zero(j.right)].push_back(&j);
     }
@@ -312,8 +409,7 @@ QueryGraph parseDump(const fs::path& filename) {
                 joins.push_back(NamedJoin{
                     std::string(elements[1].substr(6, elements[1].size() - 7)),
                     std::string(elements[2].substr(7, elements[2].size() - 8)),
-                    parseDouble(elements[3].substr(4))
-                });
+                    parseDouble(elements[3].substr(4))});
             }
         } else if (elements[0] == "o") {
             if (read) {
@@ -328,17 +424,17 @@ QueryGraph parseDump(const fs::path& filename) {
     file.close();
 
     std::unordered_map<std::string, uint64_t> relationLookup;
-    for (const auto& r: relations) {
+    for (const auto& r : relations) {
         relationLookup[r.name] = 1ull << r.id;
     }
-    for (const auto& j: joins) {
+    for (const auto& j : joins) {
         assert(relationLookup.find(j.left) != relationLookup.end());
         assert(relationLookup.find(j.right) != relationLookup.end());
         result.joins.push_back(Join{relationLookup[j.left], relationLookup[j.right], j.selectivity});
     }
 
     result.relations = std::move(relations);
-    for (const auto& card: cardinalities) {
+    for (const auto& card : cardinalities) {
         result.cardinalities[card.relations] = static_cast<double>(card.cardinality);
     }
 
@@ -348,7 +444,7 @@ QueryGraph parseDump(const fs::path& filename) {
 std::vector<fs::path> get_files() {
     std::vector<fs::path> result;
     fs::path directory("./dp/data");
-    for (const auto& entry: fs::directory_iterator(directory)) {
+    for (const auto& entry : fs::directory_iterator(directory)) {
         if (fs::is_regular_file(entry.path())) {
             result.push_back(entry.path());
         }
@@ -411,7 +507,7 @@ struct Plan1 {
     int64_t relation; // Index of the relation of a base table; -1 for non-base-tables
 };
 //---------------------------------------------------------------------------
-template<typename T>
+template <typename T>
 class BumpAllocator {
     std::vector<void*> chunks;
     uint64_t remainingSlots = 0;
@@ -426,14 +522,14 @@ class BumpAllocator {
     void release();
 };
 //---------------------------------------------------------------------------
-template<typename T>
+template <typename T>
 BumpAllocator<T>::~BumpAllocator() {
     release();
 }
 //---------------------------------------------------------------------------
-template<typename T>
+template <typename T>
 void BumpAllocator<T>::release() {
-    for (void* chunk: chunks) {
+    for (void* chunk : chunks) {
         std::free(chunk);
     }
     remainingSlots = 0;
@@ -441,7 +537,7 @@ void BumpAllocator<T>::release() {
     chunks = {};
 }
 //---------------------------------------------------------------------------
-template<typename T>
+template <typename T>
 T* BumpAllocator<T>::alloc() {
     if (remainingSlots == 0) [[unlikely]] {
         chunks.push_back(std::aligned_alloc(alignof(T), sizeof(T) * nextChunkSize));
@@ -482,7 +578,7 @@ CostModelReturnVal cost_model(Plan* leftPlan, Plan* rightPlan, double outCard, M
     return res;
 }
 //---------------------------------------------------------------------------
-template<CostModelReturnVal (* CostFn)(Plan*, Plan*, double, Model&)>
+template <CostModelReturnVal (*CostFn)(Plan*, Plan*, double, Model&)>
 class PlanGenerator {
     // Mapping from bitset of relations to plan
     std::unordered_map<uint64_t, Plan*> plans;
@@ -505,7 +601,7 @@ class PlanGenerator {
 //---------------------------------------------------------------------------
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "MemoryLeak"
-template<CostModelReturnVal (* CostFn)(Plan*, Plan*, double, Model&)>
+template <CostModelReturnVal (*CostFn)(Plan*, Plan*, double, Model&)>
 void PlanGenerator<CostFn>::seedBaseTables(const QueryGraph& q) {
     for (uint64_t i = 0; i < q.relations.size(); ++i) {
         uint64_t problem = 1ull << i;
@@ -517,41 +613,40 @@ void PlanGenerator<CostFn>::seedBaseTables(const QueryGraph& q) {
 //---------------------------------------------------------------------------
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "MemoryLeak"
-template<CostModelReturnVal (* CostFn)(Plan*, Plan*, double, Model&)>
+template <CostModelReturnVal (*CostFn)(Plan*, Plan*, double, Model&)>
 Plan* PlanGenerator<CostFn>::createBaseTablePlan(const Relation& relation) {
     Plan* plan = allocator.alloc();
-    new(plan) Plan{Features{}, nullptr, nullptr, relation.cardinality, 0, 0, static_cast<int64_t>(relation.id)};
+    new (plan) Plan{Features{}, nullptr, nullptr, relation.cardinality, 0, 0, static_cast<int64_t>(relation.id)};
     plan->openPipelineFeatures = plan->tableScanFeatures(relation);
     return plan;
 }
 #pragma clang diagnostic pop
 //---------------------------------------------------------------------------
-template<CostModelReturnVal (* CostFn)(Plan*, Plan*, double, Model&)>
+template <CostModelReturnVal (*CostFn)(Plan*, Plan*, double, Model&)>
 Plan* PlanGenerator<CostFn>::createPlan(Plan* left, Plan* right) {
     Plan* plan = allocator.alloc();
-    new(plan) Plan{
+    new (plan) Plan{
         right->openPipelineFeatures, left, right, std::numeric_limits<double>::max(),
-        std::numeric_limits<double>::max(), -1
-    };
+        std::numeric_limits<double>::max(), -1};
     return plan;
 }
 //---------------------------------------------------------------------------
-template<CostModelReturnVal (* CostFn)(Plan*, Plan*, double, Model&)>
+template <CostModelReturnVal (*CostFn)(Plan*, Plan*, double, Model&)>
 Plan* PlanGenerator<CostFn>::runDPSize(const QueryGraph& q) {
     assert(model);
     seedBaseTables(q);
     // Problem list of sizes
-    std::vector<std::vector<uint64_t> > sizes;
+    std::vector<std::vector<uint64_t>> sizes;
     sizes.resize(q.relations.size() + 1);
-    for (const auto& r: q.relations) {
+    for (const auto& r : q.relations) {
         sizes[1].push_back(1ull << r.id);
     }
     for (uint64_t size = 2; size <= q.relations.size(); ++size) {
         for (uint64_t leftSize = 1; leftSize < size; ++leftSize) {
-            for (uint64_t leftClass: sizes[leftSize]) {
+            for (uint64_t leftClass : sizes[leftSize]) {
                 Plan* leftPlan = plans[leftClass];
                 assert(leftPlan);
-                for (const auto& rightClass: sizes[size - leftSize]) {
+                for (const auto& rightClass : sizes[size - leftSize]) {
                     if (leftClass & rightClass) continue;
                     Plan* rightPlan = plans[rightClass];
                     assert(rightPlan);
@@ -568,7 +663,7 @@ Plan* PlanGenerator<CostFn>::runDPSize(const QueryGraph& q) {
     return plans[allRelationsBitset];
 }
 //---------------------------------------------------------------------------
-template<CostModelReturnVal (* CostFn)(Plan*, Plan*, double, Model&)>
+template <CostModelReturnVal (*CostFn)(Plan*, Plan*, double, Model&)>
 Plan* PlanGenerator<CostFn>::createJoinTree(
     uint64_t leftClass, Plan* leftPlan,
     uint64_t rightClass, Plan* rightPlan,
@@ -611,7 +706,7 @@ std::string printPlan(const Plan* plan, const QueryGraph& q) {
     return "(" + printPlan(plan->left, q) + "⋈" + printPlan(plan->right, q) + ")";
 }
 //---------------------------------------------------------------------------
-template<CostModelReturnVal (* CostFn)(Plan*, Plan*, double, Model&)>
+template <CostModelReturnVal (*CostFn)(Plan*, Plan*, double, Model&)>
 void runModel(const fs::path& outPath, Model model, std::vector<QueryGraph> qs,
               const std::vector<std::string>& names, std::ofstream& tbl) {
     std::ofstream planFile(outPath);
@@ -626,7 +721,8 @@ void runModel(const fs::path& outPath, Model model, std::vector<QueryGraph> qs,
         auto currentEnd = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> duration = currentEnd - currentBegin;
         // std::cout << names[i] << " cost: " << best->cost << ", time: " << duration.count() << "ms ";
-        planFile << names[i] << "\n" << printPlan(best, q) << "\n";
+        planFile << names[i] << "\n"
+                 << printPlan(best, q) << "\n";
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = end - begin;
@@ -634,13 +730,38 @@ void runModel(const fs::path& outPath, Model model, std::vector<QueryGraph> qs,
     // std::cout << "\n" << model.callsToPredict << " calls to predict in " << duration.count() << "ms, "
     //           << static_cast<double>(duration.count()) / static_cast<double>(model.callsToPredict) <<
     //           "ms per predict " << std::endl;
-    tbl << std::setprecision(1) << duration.count() << "ms & " << model.callsToPredict << " & " <<
-            std::setprecision(3) <<
-            static_cast<double>(duration.count()) / static_cast<double>(model.callsToPredict) * 1000 <<
-            "us\\\\\n";
+    tbl << std::setprecision(1) << duration.count() << "ms & " << model.callsToPredict << " & " << std::setprecision(3) << static_cast<double>(duration.count()) / static_cast<double>(model.callsToPredict) * 1000 << "us\\\\\n";
 
     planFile.close();
 }
+//---------------------------------------------------------------------------
+void printPlanFeatures(Plan* p, bool printRoot) {
+    if (!p->left) {
+        assert(!p->right);
+        return;
+    }
+    if (printRoot) {
+        // std::cout << "Root:\n";
+        p->openPipelineFeatures.print();
+    }
+    Features build = p->left->buildHashTable();
+    // std::cout << "Build:\n";
+    build.print();
+    printPlanFeatures(p->left, false);
+    printPlanFeatures(p->right, false);
+}
+//---------------------------------------------------------------------------
+void inspectModel(QueryGraph q, Model& model) {
+    q.prepareLookup();
+    PlanGenerator<cost_model> pg;
+    pg.model = &model;
+    Plan* best = pg.runDPSize(q);
+    std::cout << "cost of materialization pipelines " << best->matCost << "\n"
+              << "overall cost " << best->cost << std::endl;
+    std::cout << printPlan(best, q) << "\n";
+    printPlanFeatures(best, true);
+}
+
 //---------------------------------------------------------------------------
 Features sampleRandomFeatures(std::mt19937& gen) {
     std::uniform_real_distribution<> cardDis(0.0, 1000.0);
@@ -666,16 +787,16 @@ Features sampleRandomFeatures(std::mt19937& gen) {
     return features;
 }
 //---------------------------------------------------------------------------
-template<void (Model::* Func)()>
-void benchmarkModelLatencyScaling(const Model& model) {
-    std::ofstream outFile("./dp/latencyScaling.json");
-    if (!outFile.is_open()) { return; }
+template <void (Model::*Func)()>
+void benchmarkModelLatency(Model model) {
     std::random_device rd;
     std::mt19937 gen(rd());
-    uint64_t nRuns = 50;
-    uint64_t limit = 1000;
-    outFile << "{";
-    for (uint64_t nPipelines = 1; nPipelines <= limit; ++nPipelines) {
+    uint64_t nRuns = 10;
+    // 3 pipelines per query is the observed average from our data set
+    uint64_t nPipelinesPerQuery = 3;
+    model.resetInput();
+    for (uint64_t nQueries : {100000, 1}) {
+        uint64_t nPipelines = nQueries * nPipelinesPerQuery;
         Model currentModel = model;
         currentModel.resize(nPipelines);
         std::vector<double> durations{};
@@ -691,8 +812,43 @@ void benchmarkModelLatencyScaling(const Model& model) {
             durations.push_back(duration.count());
         }
         double runTime = *std::min_element(durations.begin(), durations.end());
+        std::cout << "Predicted " << nQueries << " Queries, time: "
+                  << runTime << "ms, per query: " << runTime / static_cast<double>(nQueries) << "ms, throughput: "
+                  << static_cast<double>(nQueries) / runTime * 1000 << "qps\n";
+    }
+}
+//---------------------------------------------------------------------------
+template <void (Model::*Func)()>
+void benchmarkModelLatencyScaling(const Model& model, const std::string& outFilePath) {
+    std::ofstream outFile(outFilePath);
+    if (!outFile.is_open()) {
+        return;
+    }
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    uint64_t nRuns = 100;
+    uint64_t limit = 1000;
+    outFile << "{";
+    for (uint64_t nPipelines = 1; nPipelines <= limit; ++nPipelines) {
+        Model currentModel = model;
+        currentModel.resize(nPipelines);
+        std::vector<double> durations{};
+        for (uint64_t i = 0; i < nRuns; ++i) {
+            for (uint64_t f = 0; f < nPipelines; ++f) {
+                currentModel.registerFeatures(sampleRandomFeatures(gen));
+            }
+            auto currentBegin = std::chrono::high_resolution_clock::now();
+            // currentModel.predictManyCompiled();
+            (currentModel.*Func)();
+            auto currentEnd = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> duration =
+                currentEnd - currentBegin;
+            durations.push_back(duration.count());
+        }
+        double runTime = *std::min_element(durations.begin(), durations.end());
         outFile << "\"" << nPipelines << "\": " << runTime;
-        if (nPipelines < limit) outFile << ", ";
+        if (nPipelines < limit)
+            outFile << ", ";
     }
     outFile << "}\n";
     outFile.close();
@@ -700,22 +856,26 @@ void benchmarkModelLatencyScaling(const Model& model) {
 //---------------------------------------------------------------------------
 int main() {
     Model model;
+    model.loadModel(fs::path("model.txt"));
     model.resize(1);
+    model.prepare();
 
-    benchmarkModelLatencyScaling<&Model::predictManyCompiled>(model);
+    benchmarkModelLatencyScaling<&Model::predictManyCompiled>(model, "./dp/latencyScalingCompiled.json");
+    benchmarkModelLatencyScaling<&Model::predictMany>(model, "./dp/latencyScalingInterpretedMT.json");
+    benchmarkModelLatencyScaling<&Model::predictManyST>(model, "./dp/latencyScalingInterpretedST.json");
 
     std::vector<QueryGraph> qs;
     std::vector<std::string> names;
-    for (const auto& path: get_files()) {
+    for (const auto& path : get_files()) {
         qs.push_back(parseDump(path));
         names.push_back(path.filename());
     }
 
     std::ofstream optTbl("./figure_output/tbl_join_order_speed.tex");
     optTbl << std::fixed;
-    optTbl << "\\begin{tabular}{r|r r r}\n" <<
-            "Model & Opt. Time & Model Calls & Time/Call\\\\\n\\hline\n" <<
-            "$\\text{C}_{\\text{out}}$ & ";
+    optTbl << "\\begin{tabular}{r|r r r}\n"
+           << "Model & Opt. Time & Model Calls & Time/Call\\\\\n\\hline\n"
+           << "$\\text{C}_{\\text{out}}$ & ";
     runModel<cost_cout>(fs::path("./dp/cout_plans.txt"), model, qs, names, optTbl);
     optTbl << "T3 & ";
     runModel<cost_model>(fs::path("./dp/model_plans.txt"), model, qs, names, optTbl);

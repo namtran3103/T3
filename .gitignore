@@ -15,6 +15,9 @@ dp/cmake-build-*
 dp/cout_plans.*
 dp/model_plans.*
 dp/query_names.txt
+dp/latencyScalingCompiled.json
+dp/latencyScalingInterpretedMT.json
+dp/latencyScalingInterpretedST.json
 data.tar.lz4
 sql
 webserver

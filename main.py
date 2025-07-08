@@ -5,7 +5,6 @@ import tarfile
 from pathlib import Path
 
 import lz4.frame
-import requests
 from lleaves import lleaves
 
 from dp.BenchmarkDPResult import benchmark_dp_queries
@@ -74,6 +73,19 @@ def extract_webserver():
             server.write(decompressed_data)
         subprocess.run(["chmod", "+x", "webserver"], cwd=os.getcwd())
 
+def extract_lightGBM():
+    if not Path("dp/LightGBM").exists():
+        lgbm_path = "downloaded_data/lightgbm.tar"
+        with open("downloaded_data/lightgbm.tar.lz4", "rb") as lgbm:
+            decompressed_data = lz4.frame.decompress(lgbm.read())
+        with open(lgbm_path, "wb") as tar:
+            tar.write(decompressed_data)
+        with tarfile.open(lgbm_path, "r") as tar:
+            tar.extractall("dp/")
+    if not Path("dp/LightGBM").exists():
+        download_t3_file("lightgbm.tar.lz4")
+
+
 
 def run_join_order_experiment(model, benchmark_results: bool):
     print("Downloading join order experiment data")
@@ -92,6 +104,12 @@ def run_join_order_experiment(model, benchmark_results: bool):
         tar.extractall(cardinality_oracle_path)
 
     extract_webserver()
+
+    print("Building LightGBM (C++ version)")
+    print(" extracting...")
+    extract_lightGBM()
+    print(" compiling...")
+    subprocess.run(["bash", "dp/compile_lightgbm.sh"], cwd=os.getcwd(), stdout=subprocess.PIPE)
 
     print("Compiling C++ benchmark")
     subprocess.run(["bash", "dp/compile.sh"], cwd=os.getcwd(), stdout=subprocess.PIPE)

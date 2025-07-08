@@ -35,7 +35,7 @@ def latency_acc_figure(estimation_cache: QueryEstimationCache):
     auto_wlm, stage, zero_shot = get_competitor_numbers()
     t3 = get_test_numbers(estimation_cache)
     latencies = get_latencies()
-    names = ["T3 (ours)", "Zero Shot", "Stage", "AutoWLM"]
+    names = ["T3 (ours)", "Zero Shot", "Stage*", "AutoWLM*"]
     latencies = [
         latencies["t3"]["avg"],
         latencies["hilprecht"]["avg"],
