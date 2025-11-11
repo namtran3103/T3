@@ -28,6 +28,8 @@ General Requirements:
 sudo apt install lz4 python3 python3-venv python3-pip
 ```
 
+This repository was tested using python 3.11.7 but any version >= 3.10 should work.
+
 Install python requirements:
 First clone this repository and move into the cloned directory.
 
@@ -48,6 +50,15 @@ Reproduce all figures of the paper:
 ```bash
 . venv/bin/activate
 python main.py
+```
+
+### Native Installation Using uv
+
+If you prefer using uv, install and run with the following commands:
+
+```bash
+uv sync
+uv run python main.py
 ```
 
 ## Additional Benchmarks
