@@ -58,7 +58,11 @@ python -m src.postgres.predict_from_pg out/15a.json --model model_pg.txt --db jo
 
 ```bash
 cd /path/to/T3
+# JOB benchmark (default schema)
 python -m src.postgres.predict_all_pg /path/to/pg_explain_job
+
+# TPC-H SF1 plans: use --db tpchSf1 so table names (lineitem, orders, etc.) match
+python -m src.postgres.predict_all_pg src/postgres/tpch_sf1/plans --db tpchSf1 --model model_pg.txt
 ```
 
 **Options:**
@@ -68,7 +72,7 @@ python -m src.postgres.predict_all_pg /path/to/pg_explain_job
 | `folder` | Directory with PG EXPLAIN JSON files (e.g. `pg_explain_job`) |
 | `--model PATH` | T3 model file (default: `model_pg.txt`) |
 | `--use-plan-rows` | Use Plan Rows instead of Actual Rows for cardinality |
-| `--db NAME` | T3 DB/schema name (default: `job`) |
+| `--db NAME` | T3 DB/schema name: `job` (JOB), `tpchSf1` (TPC-H SF1), etc. (default: `job`) |
 | `--quiet` | Only print the summary, no per-file lines |
 
 **Example output:**
