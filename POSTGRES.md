@@ -227,7 +227,7 @@ python -m src.zeroshot.training_zeroshot_tpch_holdout --data /path/to/parsed_pla
 | `--no-eval` | — | Skip test set evaluation |
 | `--quiet` | — | Less training output |
 
-Output includes q-error per test sample and a summary line; results are **appended** to `holdout.txt` in the project root (block: first line `holdout=<name>`, then per-sample lines, then the summary).
+Output includes q-error per test sample (to stdout) and a summary line; only the **summary line** is appended to `holdout.txt` in the project root (e.g. `Test set (tpc_h, N queries): q-error avg=... p50=... p90=... min=... max=...`).
 
 **Run all holdouts:** `src/zeroshot/run_all_holdouts.py` runs the holdout script once per benchmark (hardcoded list from `parsed_plans`). For each run: `--holdout <name>`, `--out model_zero_holdout_<name>.txt`. It clears `holdout.txt` at start; each run appends to it, so the file ends up with all holdouts' results in order.
 

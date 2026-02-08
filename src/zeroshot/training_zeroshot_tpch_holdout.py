@@ -202,25 +202,20 @@ def main() -> None:
         test_queries = load_benchmarked_queries_from_zeroshot(test_paths)
         if test_queries:
             errors = []
-            lines = [f"holdout={args.holdout}", ""]
             for b in test_queries:
                 pred = model.estimate_runtime(b)
                 actual = b.get_total_runtime()
                 err = q_error(actual, pred)
                 errors.append(err)
-                line = f"{b.name}: pred={pred:.6f}s actual={actual:.6f}s q_error={err:.4f}"
-                print(line)
-                lines.append(line)
+                print(f"{b.name}: pred={pred:.6f}s actual={actual:.6f}s q_error={err:.4f}")
             summary = (
                 f"Test set ({args.holdout}, {len(test_queries)} queries): "
                 f"q-error avg={np.mean(errors):.4f} p50={np.median(errors):.4f} p90={np.percentile(errors, 90):.4f} min={min(errors):.4f} max={max(errors):.4f}"
             )
             print(summary)
-            lines.append("")
-            lines.append(summary)
             holdout_path = _repo / "holdout.txt"
             with open(holdout_path, "a", encoding="utf-8") as f:
-                f.write("\n".join(lines) + "\n")
+                f.write(summary + "\n")
             print(f"Test results appended to {holdout_path}")
         else:
             print(f"No test queries could be loaded from {len(test_paths)} test files.")
