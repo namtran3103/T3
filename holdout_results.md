@@ -30,13 +30,7 @@
 
 ## p50 by dataset
 
-```mermaid
-xychart-beta
-    title "Q-error p50 by dataset"
-    x-axis ["accidents", "airline", "baseball", "basketball", "carcinogenesis", "consumer", "credit", "employee", "fhnk", "financial", "geneea", "genome", "hepatitis", "imdb", "imdb_full", "movielens", "seznam", "ssb", "tournament", "tpc_h", "walmart"]
-    y-axis "p50" 0 --> 4
-    bar [2.6521, 1.5793, 2.8679, 1.6523, 1.9938, 1.7647, 1.5862, 1.7019, 2.5883, 2.5980, 2.5914, 1.7268, 1.7521, 1.8867, 1.7437, 2.1154, 1.7883, 1.4226, 2.0021, 1.7007, 1.9047]
-```
+![p50 by dataset](holdout_p50_bars.png)
 
 ## Averages (over datasets)
 
