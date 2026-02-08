@@ -92,7 +92,7 @@ def main() -> None:
         ax.set_xticklabels(names, rotation=45, ha="right")
         ax.set_ylabel("p50")
         ax.set_title("Q-error p50 by dataset")
-        ax.set_ylim(0, None)
+        ax.set_ylim(1, None)
         fig.tight_layout()
         fig.savefig(BAR_CHART_PATH, dpi=120, bbox_inches="tight")
         plt.close(fig)
