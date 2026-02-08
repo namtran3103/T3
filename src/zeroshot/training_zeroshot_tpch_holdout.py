@@ -219,8 +219,9 @@ def main() -> None:
             lines.append("")
             lines.append(summary)
             holdout_path = _repo / "holdout.txt"
-            holdout_path.write_text("\n".join(lines), encoding="utf-8")
-            print(f"Test results written to {holdout_path}")
+            with open(holdout_path, "a", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+            print(f"Test results appended to {holdout_path}")
         else:
             print(f"No test queries could be loaded from {len(test_paths)} test files.")
     elif not args.no_eval and not test_paths:
