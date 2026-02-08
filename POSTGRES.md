@@ -237,6 +237,36 @@ python -m src.zeroshot.run_all_holdouts --data /path/to/parsed_plans
 ```
 Options: `--data DIR` (default: `.../zero-shot-data/runs/parsed_plans`), `--dry-run` (print commands only).
 
+**Visualize holdout results:** `holdout_to_md.py` (in the project root) reads `holdout.txt` and writes `holdout_results.md` with a markdown table of q-error per dataset (queries, avg, p50, p90, min, max) and an **Averages (over datasets)** section with the mean of avg, p50, p90, min, and max across all holdouts.
+
+**Usage** (from the T3 project root, after `holdout.txt` has been filled e.g. by `run_all_holdouts`):
+
+```bash
+cd /path/to/T3
+python holdout_to_md.py
+```
+
+**Summary**
+
+- **Input:** `holdout.txt` (one line per holdout: `Test set (name, N queries): q-error avg=... p50=... p90=... min=... max=...`).
+- **Output:** `holdout_results.md` — title, dataset count and total queries; a table of all datasets with queries and q-error metrics; and a final table with averaged **avg**, **p50**, **p90**, **min**, **max** over datasets.
+
+**Evaluate JOB full only:** `src/zeroshot/eval_imdb_full.py` evaluates **only** the `job_full_c8220.json` file in `imdb_full` with the model trained with imdb_full held out (`model_zero_holdout_imdb_full.txt`). Prints and writes all per-sample results plus summary to `job_zero_t3_results.txt`.
+
+```bash
+python -m src.zeroshot.eval_imdb_full
+python -m src.zeroshot.eval_imdb_full --data /path/to/parsed_plans/imdb_full --out job_zero_t3_results.txt
+```
+Options: `--data DIR` (directory containing `job_full_c8220.json`; default: `.../parsed_plans/imdb_full`), `--model PATH` (default: `model_zero_holdout_imdb_full.txt`), `--out PATH` (default: `job_zero_t3_results.txt`).
+
+**Evaluate JOB-light only:** `src/zeroshot/eval_imdb_job_light.py` evaluates only the four JOB-light JSONs in `imdb` (`job-light_c8220.json`, `job-light_repl_1_c8220.json`, `job-light_repl_2_c8220.json`, `job-light_repl_3_c8220.json`) with the **imdb** holdout model (`model_zero_holdout_imdb.txt`). Prints and writes all per-sample results plus summary to `job_light_zero_t3_results.txt`.
+
+```bash
+python -m src.zeroshot.eval_imdb_job_light
+python -m src.zeroshot.eval_imdb_job_light --data /path/to/parsed_plans/imdb --out job_light_zero_t3_results.txt
+```
+Options: `--data DIR` (directory containing the four JOB-light JSONs; default: `.../parsed_plans/imdb`), `--model PATH` (default: `model_zero_holdout_imdb.txt`), `--out PATH` (default: `job_light_zero_t3_results.txt`).
+
 ---
 
 ## collect_node_types

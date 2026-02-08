@@ -1,0 +1,10 @@
+job_full_c8220_1: pred=1.962241s actual=2.302204s q_error=1.1733
+job_full_c8220_2: pred=12.734853s actual=20.287203s q_error=1.5930
+job_full_c8220_8: pred=5.690733s actual=3.990029s q_error=1.4262
+job_full_c8220_54: pred=1.133780s actual=2.291976s q_error=2.0215
+job_full_c8220_60: pred=1.492065s actual=0.226457s q_error=6.5887
+job_full_c8220_61: pred=0.277193s actual=1.621557s q_error=5.8499
+job_full_c8220_72: pred=29.106318s actual=24.881011s q_error=1.1698
+job_full_c8220_76: pred=4.478541s actual=7.215452s q_error=1.6111
+
+Test set (job_full, 8 queries): q-error avg=2.6792 p50=1.6021 p90=6.0716 min=1.1698 max=6.5887
