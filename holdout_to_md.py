@@ -72,7 +72,22 @@ def main() -> None:
             f"{format_num(r['min'])} | {format_num(r['max'])} |"
         )
 
+    # Bar chart (p50) with Mermaid xychart-beta
+    p50_max = max(r["p50"] for r in rows)
+    y_max = max(round(p50_max) + 1, 2)
+    x_labels = ", ".join(f'"{r["dataset"]}"' for r in rows)
+    p50_vals = ", ".join(format_num(r["p50"]) for r in rows)
     md_lines.extend([
+        "",
+        "## p50 by dataset",
+        "",
+        "```mermaid",
+        "xychart-beta",
+        "    title \"Q-error p50 by dataset\"",
+        f"    x-axis [{x_labels}]",
+        f"    y-axis \"p50\" 0 --> {y_max}",
+        f"    bar [{p50_vals}]",
+        "```",
         "",
         "## Averages (over datasets)",
         "",
