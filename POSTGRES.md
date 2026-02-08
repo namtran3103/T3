@@ -107,15 +107,176 @@ Q-error: min=1.0012 p50=1.4523 p90=3.2100 max=8.5000
 3. **`src/postgres/predict_all_pg.py`**  
    Default `--model` is `model_pg.txt`. Example in the docstring updated.
 
+4. **`src/postgres/training_tpch_extended.py`**  
+   Trains on TPC-H SF1 **extended** (augmented) plans: 16 examples for training (shuffle seed 42), rest for test. Data from `src/postgres/tpch_sf1/plans/extended/`, DB `tpchSf1`. Writes `model_pg_extended.txt` by default. Use with `predict_from_pg` via `--model model_pg_extended.txt --db tpchSf1` for extended plans.
+
+5. **`src/postgres/training_job_extended.py`**  
+   Trains on JOB **extended** (augmented) plans: 80/20 train/test split (seed 42). Data from `src/postgres/pg_explain_job/extended/`, DB `job`. Writes `model_job_extended.txt` by default. Uses extended format (actual_scan_in_card, component_selectivity, ius) when present. Use with `predict_from_pg` via `--model model_job_extended.txt --db job` for JOB extended plans.
+
 **Usage**
 
 - **Train** (writes `model_pg.txt` by default):
   ```bash
   python -m src.postgres.training
   ```
+- **Train on TPC-H SF1 extended plans** (16 examples, seed 42, rest for test; writes `model_pg_extended.txt`):
+  ```bash
+  python -m src.postgres.training_tpch_extended
+  ```
+  Options: `--data DIR` (default: `src/postgres/tpch_sf1/plans/extended`), `--out PATH` (default: `model_pg_extended.txt`), `--train-n N` (default: 16), `--seed N` (default: 42), `--db NAME` (default: `tpchSf1`), `--no-eval`, `--quiet`.
+- **Train on JOB extended plans** (80/20 split, seed 42; writes `model_job_extended.txt`):
+  ```bash
+  python -m src.postgres.training_job_extended
+  ```
+  Options: `--data DIR` (default: `src/postgres/pg_explain_job/extended`), `--out PATH` (default: `model_job_extended.txt`), `--seed N` (default: 42), `--train-fraction F` (default: 0.8), `--db NAME` (default: `job`), `--no-eval`, `--quiet`.
 - **Predict** (reads `model_pg.txt` by default):
   ```bash
   python -m src.postgres.predict_from_pg path/to/15a.json
   python -m src.postgres.predict_all_pg /path/to/pg_explain_job
   ```
+  For extended model and TPC-H SF1 extended plans:
+  ```bash
+  python -m src.postgres.predict_from_pg src/postgres/tpch_sf1/plans/extended/5.json --model model_pg_extended.txt --db tpchSf1
+  ```
+  For JOB extended model and JOB extended plans:
+  ```bash
+  python -m src.postgres.predict_from_pg src/postgres/pg_explain_job/extended/15a.json --model model_job_extended.txt --db job
+  ```
 - To use another file: `--model other_model.txt` for the predict scripts and `--out other_model.txt` for training.
+- **Train on zero-shot parsed plans** (80/20 split, seed 42; writes `model_zero.txt`):
+  ```bash
+  python -m src.zeroshot.training_zeroshot
+  python -m src.zeroshot.training_zeroshot --data /path/to/zero-shot-data/runs/parsed_plans --out model_zero.txt
+  ```
+  Options: `--data DIR`, `--out PATH` (default: `model_zero.txt`), `--seed N`, `--train-fraction F`, `--no-eval`, `--quiet`.
+- **Train on zero-shot with TPC-H holdout** (train on all except `tpc_h`, test on `tpc_h`; writes `model_zero_tpch_holdout.txt`):
+  ```bash
+  python -m src.zeroshot.training_zeroshot_tpch_holdout
+  python -m src.zeroshot.training_zeroshot_tpch_holdout --data /path/to/parsed_plans --out model_zero_tpch_holdout.txt
+  ```
+  Options: `--data DIR`, `--out PATH` (default: `model_zero_tpch_holdout.txt`), `--holdout NAME` (default: `tpc_h`), `--seed N`, `--no-eval`, `--quiet`.
+
+---
+
+## Zero-shot parsed plans (training only)
+
+Train T3 on **zero-shot** parsed plan JSONs (e.g. from `zero-shot-data/runs/parsed_plans`). Plans are converted to T3 format, split into pipelines (breakers: Hash, Materialize, Sort, Aggregate), and feature vectors are generated. No PostgreSQL EXPLAIN files or schema are required; a minimal in-memory DB is used.
+
+**Script:** `src/zeroshot/training_zeroshot.py`
+
+**Usage** (from T3 project root):
+
+```bash
+cd /path/to/T3
+# Default data dir and model output model_zero.txt
+python -m src.zeroshot.training_zeroshot
+
+# Custom data directory (root containing .json files with parsed_plans)
+python -m src.zeroshot.training_zeroshot --data /path/to/zero-shot-data/runs/parsed_plans
+
+# Custom model path (default is model_zero.txt)
+python -m src.zeroshot.training_zeroshot --data /path/to/parsed_plans --out model_zero.txt
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|--------------|
+| `--data DIR` | `.../zero-shot-data/runs/parsed_plans` | Root directory to search for `*.json` files (recursive) |
+| `--out PATH` | `model_zero.txt` | Output path for the trained model |
+| `--seed N` | `42` | Random seed for 80/20 train/validation split |
+| `--train-fraction F` | `0.8` | Fraction of JSON files used for training |
+| `--no-eval` | — | Skip validation set evaluation |
+| `--quiet` | — | Less training log output |
+
+**Behavior:**
+
+- Collects all `.json` files under `--data` (each file can contain a `parsed_plans` array with one or more plans).
+- Splits **files** with seed 42: 80% train, 20% validation.
+- Converts each plan to T3 (pipelines, cardinalities, timings) and trains the per-tuple pipeline model.
+- Saves the model to `--out` (default: `model_zero.txt`).
+- If not `--no-eval`, runs validation and prints **q-error for each sample** (one line per query: `name pred=...s actual=...s q_error=...`) plus summary (avg, p50, p90, min, max).
+
+**Example output:**
+
+```
+...
+workload_100k_s1_c8220_0: pred=12.345678s actual=14.291487s q_error=1.1576
+accidents/complex_200k_1: pred=0.234567s actual=0.198234s q_error=1.1832
+...
+Validation set (N queries): q-error avg=1.5234 p50=1.4523 p90=3.2100 min=1.0012 max=8.5000
+```
+
+**TPC-H holdout (train on all except TPC-H, test on TPC-H):**
+
+**Script:** `src/zeroshot/training_zeroshot_tpch_holdout.py`
+
+Train on all zero-shot JSONs **except** those under the `tpc_h` directory; use `tpc_h` as the **test set** (leave-one-benchmark-out). Same conversion and training as above; only the split changes.
+
+```bash
+python -m src.zeroshot.training_zeroshot_tpch_holdout
+python -m src.zeroshot.training_zeroshot_tpch_holdout --data /path/to/parsed_plans --out model_zero_tpch_holdout.txt
+```
+
+| Option | Default | Description |
+|--------|---------|--------------|
+| `--data DIR` | same as above | Root directory for `*.json` files |
+| `--out PATH` | `model_zero_tpch_holdout.txt` | Output model path |
+| `--holdout NAME` | `tpc_h` | Benchmark folder name to hold out as test set |
+| `--seed N` | `42` | Seed for internal train/val split during training |
+| `--no-eval` | — | Skip test set evaluation |
+| `--quiet` | — | Less training output |
+
+Output includes q-error per test sample and a summary line; results are also written to `holdout.txt` in the project root (first line `holdout=<name>`, then per-sample lines, then the summary).
+
+---
+
+## collect_node_types
+
+**Script:** `src/postgres/collect_node_types.py`
+
+Scans all JSON plan files under `pg_explain_job` and `tpch_sf1` (including subdirs such as `pg_explain_job/extended/` and `tpch_sf1/plans/`, `tpch_sf1/plans/extended/`), recursively collects every `"Node Type"` from the plan trees, and prints a sorted JSON array of unique node types.
+
+**Summary**
+
+- **Input:** All `.json` files in `src/postgres/pg_explain_job` and `src/postgres/tpch_sf1` (recursive).
+- **Output:** A JSON list of unique PostgreSQL plan node types (e.g. Aggregate, Seq Scan, Hash Join, Sort, …).
+- **Use case:** Inspect which node types appear across your plan corpus (e.g. for operator mapping or coverage checks).
+
+**Usage** (from T3 project root or from `src/postgres`):
+
+```bash
+cd /path/to/T3
+python src/postgres/collect_node_types.py
+```
+
+Print to file:
+
+```bash
+python src/postgres/collect_node_types.py > node_types.json
+```
+
+**Example output** (node types found in the current plan corpus):
+
+```json
+[
+  "Aggregate",
+  "Bitmap Heap Scan",
+  "Bitmap Index Scan",
+  "CTE Scan",
+  "Gather",
+  "Gather Merge",
+  "Hash",
+  "Hash Join",
+  "Incremental Sort",
+  "Index Only Scan",
+  "Index Scan",
+  "Limit",
+  "Materialize",
+  "Memoize",
+  "Merge Join",
+  "Nested Loop",
+  "Seq Scan",
+  "Sort"
+]
+```

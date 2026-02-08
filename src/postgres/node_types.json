@@ -1,0 +1,20 @@
+[
+  "Aggregate",
+  "Bitmap Heap Scan",
+  "Bitmap Index Scan",
+  "CTE Scan",
+  "Gather",
+  "Gather Merge",
+  "Hash",
+  "Hash Join",
+  "Incremental Sort",
+  "Index Only Scan",
+  "Index Scan",
+  "Limit",
+  "Materialize",
+  "Memoize",
+  "Merge Join",
+  "Nested Loop",
+  "Seq Scan",
+  "Sort"
+]

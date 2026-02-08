@@ -64,6 +64,8 @@ class QueryPlan:
         if operator_type.is_join_type():
             return self._get_left_cardinality(op, operator_type, predicted_cardinalities)
         elif operator_type == OperatorType.TableScan:
+            if "inputCardinality" in op:
+                return float(op["inputCardinality"])
             return self.db.schema.get_table_scan_size(self._get_table_name(op))
         elif operator_type in (OperatorType.PipelineBreakerScan, OperatorType.InlineTable):
             return self._get_output_cardinality(op, predicted_cardinalities)

@@ -3,6 +3,10 @@ Convert PostgreSQL EXPLAIN (ANALYZE, FORMAT JSON) output to Umbra-style plan
 for T3 inference. Handles JOB-style plans: Seq Scan, Index Scan, Hash Join,
 Nested Loop, Aggregate, Sort, Gather, Memoize, Hash, Materialize.
 
+Supports augmented (extended) plans with ground-truth: actual_scan_in_card,
+component_selectivity, ius (exact bytes), T3_empty_output. These override
+T3's internal heuristics when present.
+
 Pipeline breakers (materialization points, per T3 paper): Hash/IndexNL join build
 sides, Sort, Aggregate, and PG Materialize. Each starts a new pipeline so
 parents of a breaker are assigned to the new pipeline.
@@ -13,6 +17,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+
+# Minimum bytes for an IU when augmented JSON reports 0 (variable-length).
+# Ensures T3 cost model does not treat materialization as free.
+MIN_IU_BYTES = 8
 
 
 def _plan_rows(pg: dict) -> float:
@@ -35,6 +43,62 @@ def _start_stop(pg: dict) -> tuple[float, float]:
 
 # Minimal PG plan used when Plans is empty so T3 never sees input/left/right as {} (avoids KeyError 'input').
 _PLACEHOLDER_PG: dict = {"Node Type": "Seq Scan", "Plan Rows": 0, "Actual Rows": 0, "Relation Name": "company_name"}
+
+
+def _component_selectivity_expression_type(key: str) -> str:
+    """Map component_selectivity key to T3 expression type so _featurize_expression accepts it."""
+    k = (key or "").lower()
+    if "between" in k:
+        return "between"
+    if "or_" in k or k == "or":
+        return "or"
+    if "like" in k:
+        return "like"
+    if "start" in k:
+        return "startswith"
+    if "in_" in k or k == "in":
+        return "in"
+    return "compare"
+
+
+def _apply_augmented(pg: dict, out: dict) -> None:
+    """
+    Apply augmented (extended) plan fields to the Umbra node so T3 uses
+    ground-truth instead of heuristics: component_selectivity -> restrictions,
+    ius -> producedIUs (with min width), empty output flags -> cardinality 0.
+    """
+    comp_sel = pg.get("component_selectivity")
+    if isinstance(comp_sel, dict) and comp_sel:
+        for key, val in comp_sel.items():
+            expr_type = _component_selectivity_expression_type(key)
+            out["restrictions"].append({
+                "expression": expr_type,
+                "estimatedSelectivity": float(val),
+            })
+
+    ius = pg.get("ius")
+    if isinstance(ius, list) and ius:
+        out["producedIUs"] = [
+            {"estimatedSize": max(int(e.get("bytes", 0)), MIN_IU_BYTES)} for e in ius
+        ]
+
+    if pg.get("actual_scan_in_card") == 0 or pg.get("T3_empty_output") is True:
+        out["cardinality"] = 0
+        out["analyzePlanCardinality"] = 0
+
+
+def _collect_ius_from_plan(pg_node: dict, seen: dict[str, int]) -> None:
+    """Recursively collect ius (name -> bytes) from augmented plan; dedupe by name (first wins)."""
+    ius = pg_node.get("ius")
+    if isinstance(ius, list):
+        for e in ius:
+            if isinstance(e, dict) and "name" in e:
+                name = e.get("name", "")
+                if name and name not in seen:
+                    seen[name] = max(int(e.get("bytes", 0)), MIN_IU_BYTES)
+    for child in pg_node.get("Plans", []):
+        if isinstance(child, dict):
+            _collect_ius_from_plan(child, seen)
 
 
 def _convert_child(pg: dict | None, next_id: list, use_actual_card: bool) -> dict:
@@ -63,11 +127,14 @@ def _convert_node(pg: dict, next_id: list, use_actual_card: bool) -> dict:
         "restrictions": [],
         "residuals": [],
     }
+    _apply_augmented(pg, out)
     plans = pg.get("Plans", [])
 
     if node_type in ("Seq Scan", "Index Scan", "Index Only Scan"):
         out["operator"] = "tablescan"
         out["tablename"] = pg.get("Relation Name", "unknown")
+        if "actual_scan_in_card" in pg:
+            out["inputCardinality"] = int(pg["actual_scan_in_card"])
         return out
 
     if node_type == "Hash Join":
@@ -221,9 +288,13 @@ def pg_explain_to_umbra(
         stop = max(stops) if stops else 0
         pipelines_list.append({"operators": ids, "start": start, "stop": stop, "duration": max(0, stop - start)})
 
+    ius_seen: dict[str, int] = {}
+    _collect_ius_from_plan(root_pg, ius_seen)
+    ius_list = [{"iu": name, "estimatedSize": size} for name, size in ius_seen.items()]
+
     return {
         "plan": root_umbra,
-        "ius": [],
+        "ius": ius_list,
         "analyzePlanPipelines": pipelines_list,
     }
 

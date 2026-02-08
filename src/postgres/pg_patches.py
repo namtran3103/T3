@@ -3,6 +3,11 @@ Runtime patches for T3 when running on PostgreSQL EXPLAIN plans.
 Applied from postgres package only; no edits to core T3 files.
 - Relax get_operator_stage: GroupBy/Sort/Window in middle of pipeline -> PassThrough.
 - Relax get_operator_stage: IndexNLJoin as pipeline end with right-child predecessor -> Probe (keeps 110 features).
+
+Selectivity: pg_to_umbra populates restrictions with estimatedSelectivity from augmented
+component_selectivity. T3's QueryPlan._get_expression_selectivity already returns
+expression["estimatedSelectivity"] when present, so no patch is needed to prioritize
+ground-truth over heuristics.
 """
 
 
