@@ -161,6 +161,12 @@ Q-error: min=1.0012 p50=1.4523 p90=3.2100 max=8.5000
   python -m src.zeroshot.run_all_holdouts_augmented
   ```
   Options: `--data DIR` (default: `.../runs/deepdb_augmented`), `--out PATH`, `--holdout NAME`, `--dry-run` (run_all only).
+- **Few-shot finetune zero-shot holdout models** (loads `model_zero_holdout_<name>.txt`, finetunes on up to 50 queries per holdout evenly over JSONs, seed 42; writes `model_zero_holdout_<name>_fewshot.txt`; appends to `holdout_fewshot.txt`):
+  ```bash
+  python -m src.zeroshot.training_zeroshot_holdout_fewshot
+  python -m src.zeroshot.run_all_holdouts_fewshot
+  ```
+  Options: `--data DIR`, `--holdout NAME`, `--num-queries N` (default: 50), `--dry-run` (run_all only).
 
 ---
 
@@ -242,6 +248,23 @@ python -m src.zeroshot.run_all_holdouts
 python -m src.zeroshot.run_all_holdouts --data /path/to/parsed_plans
 ```
 Options: `--data DIR` (default: `.../zero-shot-data/runs/parsed_plans`), `--dry-run` (print commands only).
+
+**Few-shot finetuning of holdout models:** Load a zero-shot holdout model (`model_zero_holdout_<name>.txt`), continue training on up to N queries (default 50) from that holdout, evenly distributed over its JSON files (seed 42), then save `model_zero_holdout_<name>_fewshot.txt` and append test summary to **`holdout_fewshot.txt`**.
+
+- **Single holdout** — `src/zeroshot/training_zeroshot_holdout_fewshot.py`:
+  ```bash
+  python -m src.zeroshot.training_zeroshot_holdout_fewshot
+  python -m src.zeroshot.training_zeroshot_holdout_fewshot --holdout tpc_h --num-queries 50
+  ```
+  Options: `--data DIR`, `--holdout NAME` (default: `tpc_h`), `--num-queries N` (default: 50), `--num-boost-round N` (default: 30), `--seed N` (default: 42), `--model-in PATH`, `--out PATH` (default: `model_zero_holdout_<holdout>_fewshot.txt`), `--no-eval`, `--quiet`.
+- **All holdouts** — `src/zeroshot/run_all_holdouts_fewshot.py`: clears `holdout_fewshot.txt`, then for each benchmark runs the few-shot script; models saved as `model_zero_holdout_<name>_fewshot.txt`, results appended to `holdout_fewshot.txt`.
+  ```bash
+  python -m src.zeroshot.run_all_holdouts_fewshot
+  python -m src.zeroshot.run_all_holdouts_fewshot --data /path/to/parsed_plans --num-queries 100
+  ```
+  Options: `--data DIR`, `--num-queries N` (default: 50), `--dry-run`.
+
+**Summary (few-shot):** Input: zero-shot holdout models and `parsed_plans` (non-augmented). Queries for finetuning are sampled evenly across the holdout’s JSON files (seed 42), up to `--num-queries`. Output: `model_zero_holdout_<name>_fewshot.txt` per holdout; test-set lines in `holdout_fewshot.txt` (same line schema as `holdout.txt`). **Visualize:** `python holdout_to_md.py --input holdout_fewshot.txt` → `holdout_fewshot_results.md` and `holdout_fewshot_p50_bars.png`.
 
 ---
 

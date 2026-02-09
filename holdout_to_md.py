@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Generate a markdown report from holdout.txt with q-error results and averages."""
+"""Generate a markdown report from holdout result files with q-error results and averages.
+
+Supports: holdout.txt (zero-shot), holdout_augmented.txt (DeepDB-augmented),
+holdout_fewshot.txt (few-shot finetuned). Same line format; output names follow
+input stem (e.g. holdout_fewshot.txt -> holdout_fewshot_results.md).
+"""
 
 import re
 from pathlib import Path
@@ -16,10 +21,17 @@ HOLDOUT_FILE = Path(__file__).parent / "holdout.txt"
 OUTPUT_MD = Path(__file__).parent / "holdout_results.md"
 BAR_CHART_PATH = Path(__file__).parent / "holdout_p50_bars.png"
 
+# Title by input stem (default fallback: "Holdout Q-Error Results")
+TITLE_BY_STEM = {
+    "holdout": "Holdout Q-Error Results",
+    "holdout_augmented": "Holdout Augmented Q-Error Results",
+    "holdout_fewshot": "Holdout Few-Shot Q-Error Results",
+}
+
 
 def _output_paths_for_input(input_path: Path) -> tuple[Path, Path]:
-    """Given input file (e.g. holdout_augmented.txt), return (output_md, bar_chart)."""
-    base = input_path.stem  # e.g. holdout_augmented
+    """Given input file (e.g. holdout_fewshot.txt), return (output_md, bar_chart)."""
+    base = input_path.stem  # e.g. holdout_fewshot
     parent = input_path.parent
     return parent / f"{base}_results.md", parent / f"{base}_p50_bars.png"
 
@@ -62,13 +74,14 @@ def main() -> None:
         "--input",
         type=Path,
         default=None,
-        help="Input file (default: holdout.txt). Use holdout_augmented.txt for augmented results.",
+        help="Input file: holdout.txt (default), holdout_augmented.txt, or holdout_fewshot.txt.",
     )
     args = ap.parse_args()
     input_path = args.input if args.input is not None else HOLDOUT_FILE
     if not input_path.is_absolute():
         input_path = Path(__file__).parent / input_path
-    output_md, bar_chart_path = _output_paths_for_input(input_path) if input_path.name != "holdout.txt" else (OUTPUT_MD, BAR_CHART_PATH)
+    output_md, bar_chart_path = _output_paths_for_input(input_path)
+    title = TITLE_BY_STEM.get(input_path.stem, "Holdout Q-Error Results")
 
     rows = parse_holdout(input_path)
     if not rows:
@@ -85,7 +98,7 @@ def main() -> None:
     avg_max = sum(r["max"] for r in rows) / n
 
     md_lines = [
-        "# Holdout Q-Error Results",
+        f"# {title}",
         "",
         f"**Datasets:** {n}  |  **Total queries:** {total_queries:,}",
         "",

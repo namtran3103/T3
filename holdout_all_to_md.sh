@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Generate markdown reports for all holdout result files.
+# Run from the T3 project root (directory containing holdout_to_md.py).
+# Creates: holdout_results.md, holdout_augmented_results.md, holdout_fewshot_results.md,
+#          holdout_fewshot_100_results.md, etc., plus corresponding _p50_bars.png files.
+
+set -e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+echo "Generating holdout markdown reports..."
+python holdout_to_md.py
+echo "  -> holdout_results.md"
+
+python holdout_to_md.py --input holdout_augmented.txt
+echo "  -> holdout_augmented_results.md"
+
+for f in holdout_fewshot.txt holdout_fewshot_*.txt; do
+  if [[ -f "$f" ]]; then
+    python holdout_to_md.py --input "$f"
+    echo "  -> ${f%.txt}_results.md"
+  fi
+done
+
+echo "Done."
