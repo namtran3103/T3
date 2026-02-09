@@ -102,10 +102,11 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
         out["right"] = _convert_node(children[1], next_id, use_actual_card) if len(children) > 1 else _make_placeholder(next_id)
         return out
 
-    # Nested Loop
+    # Nested Loop: emit as hashjoin so pipeline/stage parsing succeeds (indexnljoin
+    # triggers assertions in operator_stages when pipeline order differs from expected).
     if op_name == "Nested Loop":
         out["operator"] = "join"
-        out["physicalOperator"] = "indexnljoin"
+        out["physicalOperator"] = "hashjoin"
         out["left"] = _convert_node(children[0], next_id, use_actual_card) if len(children) > 0 else _make_placeholder(next_id)
         out["right"] = _convert_node(children[1], next_id, use_actual_card) if len(children) > 1 else _make_placeholder(next_id)
         return out
@@ -170,6 +171,18 @@ def _is_pipeline_breaker(node: dict) -> bool:
     return op in ("sort", "groupby") or (op == "temp" and node.get("pgMaterialize"))
 
 
+def _assign_pipelines_children(
+    node: dict,
+    pipeline_by_id: dict[int, int],
+    current_pipeline: list[int],
+    next_pipeline_id: list[int],
+) -> None:
+    """Assign pipeline IDs to the descendants of node only (not node itself)."""
+    for key in ("left", "right", "input"):
+        if key in node and isinstance(node[key], dict):
+            _assign_pipelines(node[key], pipeline_by_id, current_pipeline, next_pipeline_id)
+
+
 def _assign_pipelines(
     node: dict,
     pipeline_by_id: dict[int, int],
@@ -184,8 +197,17 @@ def _assign_pipelines(
 
     if op == "join" and phys in ("hashjoin", "indexnljoin"):
         pipeline_by_id[nid] = current_pipeline[0]
-        _assign_pipelines(node["left"], pipeline_by_id, current_pipeline, next_pipeline_id)
-        next_pipeline_id[0] += 1
+        left_node = node["left"]
+        left_nid = left_node.get("analyzePlanId") if isinstance(left_node, dict) else None
+        if left_nid is not None and _is_pipeline_breaker(left_node):
+            # Keep direct left child in join's pipeline so operator_stages sees it as previous op.
+            pipeline_by_id[left_nid] = current_pipeline[0]
+            next_pipeline_id[0] += 1
+            _assign_pipelines_children(left_node, pipeline_by_id, [next_pipeline_id[0]], next_pipeline_id)
+            next_pipeline_id[0] += 1
+        else:
+            _assign_pipelines(node["left"], pipeline_by_id, current_pipeline, next_pipeline_id)
+            next_pipeline_id[0] += 1
         _assign_pipelines(node["right"], pipeline_by_id, [next_pipeline_id[0]], next_pipeline_id)
         return current_pipeline[0]
 

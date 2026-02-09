@@ -13,8 +13,11 @@ Usage (from T3 project root):
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 _repo = Path(__file__).resolve().parent.parent.parent
 if str(_repo) not in sys.path:
@@ -49,6 +52,9 @@ def load_benchmarked_queries_from_zeroshot(
     db = get_minimal_database()
     queries: list[BenchmarkedQuery] = []
     for jf in json_paths:
+        skip_no_runtime = 0
+        skip_exception = 0
+        added_this_file = 0
         try:
             data = load_zeroshot_json(jf)
             plans = data.get("parsed_plans", [])
@@ -57,17 +63,113 @@ def load_benchmarked_queries_from_zeroshot(
                     converted = zeroshot_plan_to_t3(zs_plan, use_actual_card=use_actual_card)
                     runtime_sec = converted.get("plan_runtime_seconds")
                     if runtime_sec is None or runtime_sec <= 0:
+                        skip_no_runtime += 1
+                        logger.warning(
+                            "Skipping plan %s_%s: no or invalid plan_runtime_seconds (got %s)",
+                            jf.stem,
+                            idx,
+                            runtime_sec,
+                        )
                         continue
                     plan = QueryPlan(converted, db, predicted_cardinalities=not use_actual_card)
                     plan.build_pipelines(converted["analyzePlanPipelines"])
                     name = f"{jf.stem}_{idx}" if len(plans) > 1 else jf.stem
                     b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed)
                     queries.append(b)
-                except Exception:
+                    added_this_file += 1
+                except Exception as e:
+                    skip_exception += 1
+                    logger.warning(
+                        "Skipping plan %s_%s: conversion or pipeline build failed: %s",
+                        jf.stem,
+                        idx,
+                        e,
+                        exc_info=True,
+                    )
                     continue
-        except Exception:
+            if skip_no_runtime or skip_exception:
+                logger.info(
+                    "Loaded %s from %s: %s ok, %s skipped (no runtime), %s skipped (exception)",
+                    jf.name,
+                    added_this_file,
+                    skip_no_runtime,
+                    skip_exception,
+                )
+        except Exception as e:
+            logger.warning("Failed to load file %s: %s", jf, e, exc_info=True)
             continue
     return queries
+
+
+def load_benchmarked_queries_from_zeroshot_with_diagnostics(
+    json_paths: list[Path],
+    use_actual_card: bool = True,
+) -> tuple[list[BenchmarkedQuery], list[dict]]:
+    """Like load_benchmarked_queries_from_zeroshot but also return per-file diagnostics.
+    Returns (queries, diagnostics) where each diagnostic dict has: path, plans_total, added,
+    skip_no_runtime, skip_exception, file_error (str or None if file loaded)."""
+    db = get_minimal_database()
+    queries: list[BenchmarkedQuery] = []
+    diagnostics: list[dict] = []
+    for jf in json_paths:
+        skip_no_runtime = 0
+        skip_exception = 0
+        added_this_file = 0
+        plans_total = 0
+        file_error: str | None = None
+        try:
+            data = load_zeroshot_json(jf)
+            plans = data.get("parsed_plans", [])
+            plans_total = len(plans)
+            for idx, zs_plan in enumerate(plans):
+                try:
+                    converted = zeroshot_plan_to_t3(zs_plan, use_actual_card=use_actual_card)
+                    runtime_sec = converted.get("plan_runtime_seconds")
+                    if runtime_sec is None or runtime_sec <= 0:
+                        skip_no_runtime += 1
+                        logger.warning(
+                            "Skipping plan %s_%s: no or invalid plan_runtime_seconds (got %s)",
+                            jf.stem,
+                            idx,
+                            runtime_sec,
+                        )
+                        continue
+                    plan = QueryPlan(converted, db, predicted_cardinalities=not use_actual_card)
+                    plan.build_pipelines(converted["analyzePlanPipelines"])
+                    name = f"{jf.stem}_{idx}" if len(plans) > 1 else jf.stem
+                    b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed)
+                    queries.append(b)
+                    added_this_file += 1
+                except Exception as e:
+                    skip_exception += 1
+                    logger.warning(
+                        "Skipping plan %s_%s: conversion or pipeline build failed: %s",
+                        jf.stem,
+                        idx,
+                        e,
+                        exc_info=True,
+                    )
+                    continue
+            if skip_no_runtime or skip_exception:
+                logger.info(
+                    "Loaded %s from %s: %s ok, %s skipped (no runtime), %s skipped (exception)",
+                    jf.name,
+                    added_this_file,
+                    skip_no_runtime,
+                    skip_exception,
+                )
+        except Exception as e:
+            file_error = f"{type(e).__name__}: {e}"
+            logger.warning("Failed to load file %s: %s", jf, e, exc_info=True)
+        diagnostics.append({
+            "path": str(jf),
+            "plans_total": plans_total,
+            "added": added_this_file,
+            "skip_no_runtime": skip_no_runtime,
+            "skip_exception": skip_exception,
+            "file_error": file_error,
+        })
+    return queries, diagnostics
 
 
 def train_per_tuple_model(

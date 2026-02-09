@@ -19,3 +19,7 @@ Test set (ssb, 13396 queries): q-error avg=1.9556 p50=1.4226 p90=2.8667 min=1.00
 Test set (tournament, 11992 queries): q-error avg=3.1640 p50=2.0021 p90=6.2472 min=1.0000 max=45.9710
 Test set (tpc_h, 9868 queries): q-error avg=2.4960 p50=1.7007 p90=5.1287 min=1.0002 max=21.1285
 Test set (walmart, 12492 queries): q-error avg=1.9596 p50=1.9047 p90=2.6314 min=1.0003 max=10.9248
+
+V2 updated training more queries now..
+Test set (imdb_full, 50799 queries): q-error avg=2.5334 p50=1.7265 p90=4.4393 min=1.0000 max=47.7022
+Test set (imdb_full, 50799 queries): q-error avg=2.5334 p50=1.7265 p90=4.4393 min=1.0000 max=47.7022

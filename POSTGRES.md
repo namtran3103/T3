@@ -155,6 +155,12 @@ Q-error: min=1.0012 p50=1.4523 p90=3.2100 max=8.5000
   python -m src.zeroshot.training_zeroshot_tpch_holdout --data /path/to/parsed_plans --out model_zero_tpch_holdout.txt
   ```
   Options: `--data DIR`, `--out PATH` (default: `model_zero_tpch_holdout.txt`), `--holdout NAME` (default: `tpc_h`), `--seed N`, `--no-eval`, `--quiet`.
+- **Train on zero-shot with imdb_full holdout** (train on all except `imdb_full`, test on `imdb_full`; writes `model_zero_holdout_imdb_full.txt` or `_v1`, `_v2`, … if it exists; appends training diagnostics to `diagnostics_training.txt` with timestamp and holdout):
+  ```bash
+  python -m src.zeroshot.training_zeroshot_imdb_full_holdout
+  python -m src.zeroshot.training_zeroshot_imdb_full_holdout --data /path/to/parsed_plans
+  ```
+  Options: `--data DIR`, `--out PATH` (default: `model_zero_holdout_imdb_full.txt`, or next free `_vN` if file exists), `--seed N`, `--no-eval`, `--quiet`. See **imdb_full holdout** section below for diagnostics output.
 - **Train on zero-shot DeepDB-augmented with holdout** (data from `runs/deepdb_augmented/`; writes `model_zero_holdout_<name>_augmented.txt`; appends to `holdout_augmented.txt`):
   ```bash
   python -m src.zeroshot.training_zeroshot_tpch_holdout_augmented
@@ -240,6 +246,32 @@ python -m src.zeroshot.training_zeroshot_tpch_holdout --data /path/to/parsed_pla
 | `--quiet` | — | Less training output |
 
 Output includes q-error per test sample (to stdout) and a summary line; only the **summary line** is appended to `holdout.txt` in the project root (e.g. `Test set (tpc_h, N queries): q-error avg=... p50=... p90=... min=... max=...`).
+
+**imdb_full holdout (train on all except imdb_full, test on imdb_full; versioned output; training diagnostics):**
+
+**Script:** `src/zeroshot/training_zeroshot_imdb_full_holdout.py`
+
+Same as TPC-H holdout but with **imdb_full** as the holdout and default output **`model_zero_holdout_imdb_full.txt`**. If that file already exists, the script saves to **`model_zero_holdout_imdb_full_v1.txt`**, then `_v2`, etc. (next free number). No overwrite of existing models. Each run **appends training diagnostics** to **`diagnostics_training.txt`** (timestamp, holdout name, per-file used/skipped counts, totals) so you can see whether all plans were used or some were skipped (e.g. no runtime, conversion error).
+
+**Usage** (from T3 project root):
+
+```bash
+# Default data dir and versioned model output
+python -m src.zeroshot.training_zeroshot_imdb_full_holdout
+
+# Custom parsed-plans root
+python -m src.zeroshot.training_zeroshot_imdb_full_holdout --data /path/to/parsed_plans
+```
+
+| Option | Default | Description |
+|--------|---------|--------------|
+| `--data DIR` | `.../zero-shot-data/runs/parsed_plans` | Root directory for `*.json` files |
+| `--out PATH` | `model_zero_holdout_imdb_full.txt` (or next free `_vN`) | Output model path; if path exists, `_v1`, `_v2`, … used |
+| `--seed N` | `42` | Seed for internal train/val split during training |
+| `--no-eval` | — | Skip test set evaluation |
+| `--quiet` | — | Less training output |
+
+**Output:** Test summary is appended to `holdout.txt` (same line schema as TPC-H holdout). **Training diagnostics** are appended to **`diagnostics_training.txt`** in the project root: each block has `timestamp` (UTC), `holdout=imdb_full`, `train_files`, `total_queries_used`, one line per train file (`plans`, `added`, `skip_no_runtime`, `skip_exception`, optional `file_error`, and `[ok]` or `[skipped_some]`), then totals. Use this file to see if any plans were skipped during training.
 
 **Run all holdouts:** `src/zeroshot/run_all_holdouts.py` runs the holdout script once per benchmark (hardcoded list from `parsed_plans`). For each run: `--holdout <name>`, `--out model_zero_holdout_<name>.txt`. It clears `holdout.txt` at start; each run appends to it, so the file ends up with all holdouts' results in order.
 
