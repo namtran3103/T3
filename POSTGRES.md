@@ -155,6 +155,12 @@ Q-error: min=1.0012 p50=1.4523 p90=3.2100 max=8.5000
   python -m src.zeroshot.training_zeroshot_tpch_holdout --data /path/to/parsed_plans --out model_zero_tpch_holdout.txt
   ```
   Options: `--data DIR`, `--out PATH` (default: `model_zero_tpch_holdout.txt`), `--holdout NAME` (default: `tpc_h`), `--seed N`, `--no-eval`, `--quiet`.
+- **Train on zero-shot DeepDB-augmented with holdout** (data from `runs/deepdb_augmented/`; writes `model_zero_holdout_<name>_augmented.txt`; appends to `holdout_augmented.txt`):
+  ```bash
+  python -m src.zeroshot.training_zeroshot_tpch_holdout_augmented
+  python -m src.zeroshot.run_all_holdouts_augmented
+  ```
+  Options: `--data DIR` (default: `.../runs/deepdb_augmented`), `--out PATH`, `--holdout NAME`, `--dry-run` (run_all only).
 
 ---
 
@@ -236,6 +242,53 @@ python -m src.zeroshot.run_all_holdouts
 python -m src.zeroshot.run_all_holdouts --data /path/to/parsed_plans
 ```
 Options: `--data DIR` (default: `.../zero-shot-data/runs/parsed_plans`), `--dry-run` (print commands only).
+
+---
+
+## Zero-shot DeepDB-augmented plans (training only)
+
+Train T3 on **DeepDB-augmented** zero-shot runs (`runs/deepdb_augmented/`): same schema as `parsed_plans` but with DeepDB SPN cardinality estimates per node (`dd_est_card`, `dd_est_children_card`). Conversion uses `src/zeroshot/augmented_zeroshot_to_t3.py`, which prefers `dd_est_card` over `est_card` when present.
+
+**Scripts:**
+
+- **`src/zeroshot/augmented_zeroshot_to_t3.py`** — Converts DeepDB-augmented JSON to T3 format (same pipeline/timing logic as `zeroshot_to_t3`, cardinality from `dd_est_card` / `dd_est_children_card` when available).
+- **`src/zeroshot/training_zeroshot_tpch_holdout_augmented.py`** — Same holdout training as `training_zeroshot_tpch_holdout` but reads from `runs/deepdb_augmented/` and uses the augmented converter; writes models named `*_augmented.txt` and appends results to **`holdout_augmented.txt`** (same line schema as `holdout.txt`).
+- **`src/zeroshot/run_all_holdouts_augmented.py`** — Runs holdout training for every benchmark on DeepDB-augmented data; models: `model_zero_holdout_<name>_augmented.txt`; clears then appends to `holdout_augmented.txt`.
+
+**Usage** (from T3 project root):
+
+```bash
+# Single holdout (default: tpc_h)
+python -m src.zeroshot.training_zeroshot_tpch_holdout_augmented
+python -m src.zeroshot.training_zeroshot_tpch_holdout_augmented --data /path/to/deepdb_augmented --holdout imdb --out model_zero_holdout_imdb_augmented.txt
+
+# Run all holdouts (hardcoded list under deepdb_augmented)
+python -m src.zeroshot.run_all_holdouts_augmented
+python -m src.zeroshot.run_all_holdouts_augmented --data /path/to/deepdb_augmented
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--data DIR` | `.../zero-shot-data/runs/deepdb_augmented` | Root directory containing benchmark subdirs with augmented JSONs |
+| `--out PATH` | `model_zero_tpch_holdout_augmented.txt` | Output model path (per-holdout: `model_zero_holdout_<name>_augmented.txt`) |
+| `--holdout NAME` | `tpc_h` | Benchmark folder to hold out as test set |
+| `--dry-run` | — | (run_all_holdouts_augmented only) Print commands, do not run |
+
+**Output:** One line per holdout appended to `holdout_augmented.txt`, same schema as `holdout.txt`:  
+`Test set (name, N queries): q-error avg=... p50=... p90=... min=... max=...`
+
+**Visualize augmented results:** Use `holdout_to_md.py` with `--input holdout_augmented.txt` to generate `holdout_augmented_results.md` and `holdout_augmented_p50_bars.png`:
+
+```bash
+python holdout_to_md.py --input holdout_augmented.txt
+```
+
+**Summary**
+
+- **Input:** `runs/deepdb_augmented/` (parsed plans + DeepDB cardinalities).
+- **Conversion:** `augmented_zeroshot_to_t3` uses `dd_est_card` / `dd_est_children_card` when present.
+- **Models:** `model_zero_holdout_<name>_augmented.txt`.
+- **Results file:** `holdout_augmented.txt`; report: `python holdout_to_md.py --input holdout_augmented.txt`.
 
 **Visualize holdout results:** `holdout_to_md.py` (in the project root) reads `holdout.txt` and writes `holdout_results.md` with a markdown table of q-error per dataset (queries, avg, p50, p90, min, max) and an **Averages (over datasets)** section with the mean of avg, p50, p90, min, and max across all holdouts.
 

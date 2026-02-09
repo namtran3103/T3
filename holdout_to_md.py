@@ -16,6 +16,13 @@ HOLDOUT_FILE = Path(__file__).parent / "holdout.txt"
 OUTPUT_MD = Path(__file__).parent / "holdout_results.md"
 BAR_CHART_PATH = Path(__file__).parent / "holdout_p50_bars.png"
 
+
+def _output_paths_for_input(input_path: Path) -> tuple[Path, Path]:
+    """Given input file (e.g. holdout_augmented.txt), return (output_md, bar_chart)."""
+    base = input_path.stem  # e.g. holdout_augmented
+    parent = input_path.parent
+    return parent / f"{base}_results.md", parent / f"{base}_p50_bars.png"
+
 # Pattern: Test set (name, N queries): q-error avg=X p50=Y p90=Z min=M max=Max
 LINE_PATTERN = re.compile(
     r"Test set \((\w+),\s*(\d+)\s*queries\):\s*q-error\s+"
@@ -49,9 +56,23 @@ def format_num(x: float) -> str:
 
 
 def main() -> None:
-    rows = parse_holdout(HOLDOUT_FILE)
+    import argparse
+    ap = argparse.ArgumentParser(description="Generate markdown report from holdout result file.")
+    ap.add_argument(
+        "--input",
+        type=Path,
+        default=None,
+        help="Input file (default: holdout.txt). Use holdout_augmented.txt for augmented results.",
+    )
+    args = ap.parse_args()
+    input_path = args.input if args.input is not None else HOLDOUT_FILE
+    if not input_path.is_absolute():
+        input_path = Path(__file__).parent / input_path
+    output_md, bar_chart_path = _output_paths_for_input(input_path) if input_path.name != "holdout.txt" else (OUTPUT_MD, BAR_CHART_PATH)
+
+    rows = parse_holdout(input_path)
     if not rows:
-        print("No data parsed from", HOLDOUT_FILE)
+        print("No data parsed from", input_path)
         return
 
     total_queries = sum(r["queries"] for r in rows)
@@ -94,9 +115,9 @@ def main() -> None:
         ax.set_title("Q-error p50 by dataset")
         ax.set_ylim(1, None)
         fig.tight_layout()
-        fig.savefig(BAR_CHART_PATH, dpi=120, bbox_inches="tight")
+        fig.savefig(bar_chart_path, dpi=120, bbox_inches="tight")
         plt.close(fig)
-        chart_md = [f"![p50 by dataset]({BAR_CHART_PATH.name})"]
+        chart_md = [f"![p50 by dataset]({bar_chart_path.name})"]
     else:
         p50_max = max(p50_vals)
         y_max = max(round(p50_max) + 1, 2)
@@ -130,8 +151,8 @@ def main() -> None:
         "",
     ])
 
-    OUTPUT_MD.write_text("\n".join(md_lines), encoding="utf-8")
-    print("Wrote", OUTPUT_MD)
+    output_md.write_text("\n".join(md_lines), encoding="utf-8")
+    print("Wrote", output_md)
 
 
 if __name__ == "__main__":
