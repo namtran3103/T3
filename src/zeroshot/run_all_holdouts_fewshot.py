@@ -3,13 +3,13 @@ Run few-shot finetuning for every zero-shot holdout model.
 
 For each holdout: loads model_zero_holdout_<name>.txt, finetunes on up to N queries
 (default 50) evenly distributed over that holdout's JSON files (seed 42), saves
-model_zero_holdout_<name>_fewshot.txt (or ..._fewshot_<N>.txt if N != 50), and appends
-test summary to holdout_fewshot.txt (or holdout_fewshot_<N>.txt if N != 50).
+model_zero_holdout_<name>_fewshot_<num_queries>_<num_boost_round>.txt, and appends
+test summary to holdout_fewshot_<num_queries>_<num_boost_round>.txt.
 Clears that results file at start so it ends up with all holdouts' results in order.
 
 Usage (from T3 project root):
   python -m src.zeroshot.run_all_holdouts_fewshot
-  python -m src.zeroshot.run_all_holdouts_fewshot --data /path/to/parsed_plans --num-queries 100
+  python -m src.zeroshot.run_all_holdouts_fewshot --data /path/to/parsed_plans --num-queries 100 --num-boost-round 50
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ if str(_repo) not in sys.path:
 
 PARSED_PLANS_ROOT = "/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans"
 DEFAULT_NUM_QUERIES = 50
+DEFAULT_NUM_BOOST_ROUND = 30
 HOLDOUTS = [
     "accidents",
     "airline",
@@ -67,6 +68,12 @@ def main() -> None:
         help=f"Max queries per holdout for finetuning (default: {DEFAULT_NUM_QUERIES})",
     )
     parser.add_argument(
+        "--num-boost-round",
+        type=int,
+        default=DEFAULT_NUM_BOOST_ROUND,
+        help=f"Number of additional boosting rounds (default: {DEFAULT_NUM_BOOST_ROUND})",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Only print commands, do not run",
@@ -78,19 +85,13 @@ def main() -> None:
         print(f"Error: not a directory: {data_dir}")
         sys.exit(1)
 
-    if args.num_queries == DEFAULT_NUM_QUERIES:
-        holdout_txt = _repo / "holdout_fewshot.txt"
-    else:
-        holdout_txt = _repo / f"holdout_fewshot_{args.num_queries}.txt"
+    holdout_txt = _repo / f"holdout_fewshot_{args.num_queries}_{args.num_boost_round}.txt"
     if not args.dry_run and holdout_txt.exists():
         holdout_txt.write_text("", encoding="utf-8")
         print(f"Cleared {holdout_txt} for appending.")
 
     for i, holdout in enumerate(HOLDOUTS):
-        if args.num_queries == DEFAULT_NUM_QUERIES:
-            model_out = f"model_zero_holdout_{holdout}_fewshot.txt"
-        else:
-            model_out = f"model_zero_holdout_{holdout}_fewshot_{args.num_queries}.txt"
+        model_out = f"model_zero_holdout_{holdout}_fewshot_{args.num_queries}_{args.num_boost_round}.txt"
         cmd = [
             sys.executable,
             "-m",
@@ -101,8 +102,8 @@ def main() -> None:
             holdout,
             "--num-queries",
             str(args.num_queries),
-            "--out",
-            model_out,
+            "--num-boost-round",
+            str(args.num_boost_round),
         ]
         print(f"[{i + 1}/{len(HOLDOUTS)}] holdout={holdout} -> {model_out}")
         if args.dry_run:

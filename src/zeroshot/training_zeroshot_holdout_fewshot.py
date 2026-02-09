@@ -2,9 +2,9 @@
 Few-shot finetune a zero-shot holdout model on queries from the holdout benchmark.
 
 Loads model_zero_holdout_<holdout>.txt, selects up to N queries (default 50) evenly
-distributed over the holdout's JSON files (seed 42), continues LightGBM training for a
-small number of rounds, and saves model_zero_holdout_<holdout>_fewshot.txt.
-Test-set summary is appended to holdout_fewshot.txt.
+distributed over the holdout's JSON files (seed 42), continues LightGBM training for
+num_boost_round (default 30), and saves model_zero_holdout_<holdout>_fewshot_<num_queries>_<num_boost_round>.txt.
+Test-set summary is appended to holdout_fewshot_<num_queries>_<num_boost_round>.txt.
 
 Usage (from T3 project root):
   python -m src.zeroshot.training_zeroshot_holdout_fewshot
@@ -204,12 +204,12 @@ def main() -> None:
         "--out",
         type=Path,
         default=None,
-        help="Output model path (default: ..._fewshot.txt or ..._fewshot_<num_queries>.txt if num-queries != 50)",
+        help="Output model path (default: ..._fewshot_<num_queries>_<num_boost_round>.txt)",
     )
     parser.add_argument(
         "--no-eval",
         action="store_true",
-        help="Skip printing test set metrics and appending to holdout_fewshot.txt",
+        help="Skip printing test set metrics and appending to holdout results file",
     )
     parser.add_argument(
         "--quiet",
@@ -261,10 +261,7 @@ def main() -> None:
 
     out_path = args.out
     if out_path is None:
-        if args.num_queries == DEFAULT_NUM_QUERIES:
-            out_path = _repo / f"model_zero_holdout_{args.holdout}_fewshot.txt"
-        else:
-            out_path = _repo / f"model_zero_holdout_{args.holdout}_fewshot_{args.num_queries}.txt"
+        out_path = _repo / f"model_zero_holdout_{args.holdout}_fewshot_{args.num_queries}_{args.num_boost_round}.txt"
     else:
         out_path = out_path if out_path.is_absolute() else _repo / out_path
     bst.save_model(str(out_path))
@@ -286,10 +283,7 @@ def main() -> None:
                 f"q-error avg={np.mean(errors):.4f} p50={np.median(errors):.4f} p90={np.percentile(errors, 90):.4f} min={min(errors):.4f} max={max(errors):.4f}"
             )
             print(summary)
-            if args.num_queries == DEFAULT_NUM_QUERIES:
-                holdout_path = _repo / "holdout_fewshot.txt"
-            else:
-                holdout_path = _repo / f"holdout_fewshot_{args.num_queries}.txt"
+            holdout_path = _repo / f"holdout_fewshot_{args.num_queries}_{args.num_boost_round}.txt"
             with open(holdout_path, "a", encoding="utf-8") as f:
                 f.write(summary + "\n")
             print(f"Test results appended to {holdout_path}")
