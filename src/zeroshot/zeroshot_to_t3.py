@@ -82,7 +82,7 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
             out["restrictions"].append({"expression": "compare", "estimatedSelectivity": 0.1})
         return out
 
-    # Hash Join
+    # Hash Join: map so left=build (inner), right=probe (outer) to match Umbra operator_stages
     if op_name == "Hash Join":
         out["operator"] = "join"
         out["physicalOperator"] = "hashjoin"
@@ -90,16 +90,18 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
         inner = children[1] if len(children) > 1 else None
         if inner and inner.get("plan_parameters", {}).get("op_name") == "Hash":
             inner = (inner.get("children") or [None])[0]
-        out["left"] = _convert_node(outer, next_id, use_actual_card) if outer else _make_placeholder(next_id)
-        out["right"] = _convert_node(inner, next_id, use_actual_card) if inner else _make_placeholder(next_id)
+        out["left"] = _convert_node(inner, next_id, use_actual_card) if inner else _make_placeholder(next_id)
+        out["right"] = _convert_node(outer, next_id, use_actual_card) if outer else _make_placeholder(next_id)
         return out
 
-    # Merge Join (treat as hash join for pipeline structure)
+    # Merge Join (treat as hash join for pipeline structure): left=build (inner), right=probe (outer)
     if op_name == "Merge Join":
         out["operator"] = "join"
         out["physicalOperator"] = "hashjoin"
-        out["left"] = _convert_node(children[0], next_id, use_actual_card) if len(children) > 0 else _make_placeholder(next_id)
-        out["right"] = _convert_node(children[1], next_id, use_actual_card) if len(children) > 1 else _make_placeholder(next_id)
+        outer = children[0] if len(children) > 0 else None
+        inner = children[1] if len(children) > 1 else None
+        out["left"] = _convert_node(inner, next_id, use_actual_card) if inner else _make_placeholder(next_id)
+        out["right"] = _convert_node(outer, next_id, use_actual_card) if outer else _make_placeholder(next_id)
         return out
 
     # Nested Loop: emit as hashjoin so pipeline/stage parsing succeeds (indexnljoin

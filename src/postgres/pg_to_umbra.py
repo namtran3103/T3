@@ -142,8 +142,9 @@ def _convert_node(pg: dict, next_id: list, use_actual_card: bool) -> dict:
         inner = plans[1].get("Plans", [None])[0] if len(plans) > 1 and plans[1].get("Node Type") == "Hash" else (plans[1] if len(plans) > 1 else None)
         out["operator"] = "join"
         out["physicalOperator"] = "hashjoin"
-        out["left"] = _convert_child(outer, next_id, use_actual_card)
-        out["right"] = _convert_child(inner, next_id, use_actual_card)
+        # left=build (inner), right=probe (outer) to match Umbra operator_stages
+        out["left"] = _convert_child(inner, next_id, use_actual_card)
+        out["right"] = _convert_child(outer, next_id, use_actual_card)
         return out
 
     if node_type == "Nested Loop":

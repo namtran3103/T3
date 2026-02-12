@@ -109,8 +109,12 @@ def main() -> None:
     lines.append(summary)
 
     out_path = args.out if args.out.is_absolute() else _repo / args.out
-    out_path.write_text("\n".join(lines), encoding="utf-8")
-    print(f"Results written to {out_path}")
+    append_sep = out_path.is_file() and out_path.stat().st_size > 0
+    with open(out_path, "a", encoding="utf-8") as f:
+        if append_sep:
+            f.write("\n")
+        f.write("\n".join(lines) + "\n")
+    print(f"Results appended to {out_path}")
 
 
 if __name__ == "__main__":

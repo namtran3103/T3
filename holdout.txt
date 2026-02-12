@@ -23,3 +23,9 @@ Test set (walmart, 12492 queries): q-error avg=1.9596 p50=1.9047 p90=2.6314 min=
 V2 updated training more queries now..
 Test set (imdb_full, 50799 queries): q-error avg=2.5334 p50=1.7265 p90=4.4393 min=1.0000 max=47.7022
 Test set (imdb_full, 50799 queries): q-error avg=2.5334 p50=1.7265 p90=4.4393 min=1.0000 max=47.7022
+
+Test set (imdb, 31426 queries): q-error avg=5.1130 p50=1.9470 p90=6.7762 min=1.0000 max=257.0734
+Test set (imdb_full, 50799 queries): q-error avg=2.4448 p50=1.8625 p90=4.4529 min=1.0000 max=26.8812
+Test set (imdb_full, 50799 queries): q-error avg=2.9420 p50=2.0324 p90=5.3108 min=1.0001 max=396.5800
+Test set (imdb_full, 50799 queries): q-error avg=2.9420 p50=2.0324 p90=5.3108 min=1.0001 max=396.5800
+Test set (imdb_full, 50799 queries): q-error avg=2.4448 p50=1.8625 p90=4.4529 min=1.0000 max=26.8812
