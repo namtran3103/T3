@@ -29,3 +29,21 @@ Test set (imdb_full, 50799 queries): q-error avg=2.4448 p50=1.8625 p90=4.4529 mi
 Test set (imdb_full, 50799 queries): q-error avg=2.9420 p50=2.0324 p90=5.3108 min=1.0001 max=396.5800
 Test set (imdb_full, 50799 queries): q-error avg=2.9420 p50=2.0324 p90=5.3108 min=1.0001 max=396.5800
 Test set (imdb_full, 50799 queries): q-error avg=2.4448 p50=1.8625 p90=4.4529 min=1.0000 max=26.8812
+Test set (imdb_full, 50799 queries): q-error avg=2.3956 p50=1.8436 p90=4.2770 min=1.0001 max=30.9718
+Test set (imdb_full, 50799 queries): q-error avg=2.9420 p50=2.0324 p90=5.3108 min=1.0001 max=396.5800
+Test set (imdb_full, 50799 queries): q-error avg=2.9420 p50=2.0324 p90=5.3108 min=1.0001 max=396.5800
+Test set (imdb_full, 50799 queries): q-error avg=2.9330 p50=1.9928 p90=5.4093 min=1.0001 max=282.5320
+Test set (imdb_full, 50799 queries): q-error avg=2.9330 p50=1.9928 p90=5.4093 min=1.0001 max=282.5320
+Test set (imdb_full, 50799 queries): q-error avg=2.8818 p50=1.9820 p90=5.4736 min=1.0000 max=431.2187
+Test set (imdb_full, 50799 queries): q-error avg=2.4186 p50=1.8627 p90=4.3473 min=1.0000 max=31.5564
+Test set (imdb_full, 50799 queries): q-error avg=2.9528 p50=1.9962 p90=5.4335 min=1.0000 max=738.8982
+Test set (imdb_full, 50799 queries): q-error avg=2.8566 p50=1.9734 p90=5.4470 min=1.0000 max=130.5375
+Test set (imdb_full, 50799 queries): q-error avg=2.4335 p50=1.8561 p90=4.4014 min=1.0000 max=32.7518
+Test set (imdb_full, 50799 queries): q-error avg=2.3909 p50=1.8427 p90=4.3012 min=1.0000 max=28.7340
+Test set (imdb_full, 50799 queries): q-error avg=2.8564 p50=1.9700 p90=5.4575 min=1.0000 max=283.2558
+Test set (imdb_full, 50799 queries): q-error avg=2.8564 p50=1.9700 p90=5.4575 min=1.0000 max=283.2558
+Test set (imdb_full, 50799 queries): q-error avg=2.3909 p50=1.8427 p90=4.3012 min=1.0000 max=28.7340
+Test set (imdb_full, 16278 queries, enriched_only): q-error avg=2.5314 p50=1.8854 p90=4.7770 min=1.0000 max=24.0729
+Test set (imdb_full, 50799 queries): q-error avg=2.3740 p50=1.8219 p90=4.3325 min=1.0000 max=30.8007
+Test set (imdb_full, 50799 queries): q-error avg=2.3928 p50=1.8251 p90=4.3327 min=1.0000 max=63.2359
+Test set (imdb_full, 50799 queries): q-error avg=2.3740 p50=1.8219 p90=4.3325 min=1.0000 max=30.8007

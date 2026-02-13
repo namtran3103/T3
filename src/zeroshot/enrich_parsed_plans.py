@@ -131,13 +131,15 @@ def enrich_parsed_plan_node(
                         scan_info = scan_info_list[best_match_idx]
                         # Note: We don't update scan_idx_ref here to maintain order
         
-        # FIXED: Always enrich ALL scans, even if no matching scan_info found
+        # Only enrich scans that have raw EXPLAIN ANALYZE data (rows_removed_by_filter)
+        # Scans without raw data will use the old fallback logic in zeroshot_to_t3.py
+        # This maintains consistency: we only enrich where we have accurate data
         act_card = p.get('act_card')
         if act_card is not None:
             rows_removed = scan_info.get('rows_removed_by_filter') if scan_info else None
             
             if rows_removed is not None and rows_removed > 0:
-                # Filtering occurred: input = output + removed
+                # Raw data available: enrich with actual filtering information
                 p['rows_removed_by_filter'] = rows_removed
                 input_card = act_card + rows_removed
                 p['input_cardinality'] = input_card
@@ -146,25 +148,8 @@ def enrich_parsed_plan_node(
                 if input_card > 0:
                     selectivity = act_card / input_card
                     p['overall_selectivity'] = selectivity
-            else:
-                # No filtering info available (Index scans, scans without filters, or no raw data)
-                # Set input_cardinality = act_card (conservative estimate)
-                # Set selectivity = 1.0 (assume no filtering, though table might be larger)
-                p['input_cardinality'] = act_card
-                p['overall_selectivity'] = 1.0
-                # Note: This is a conservative estimate. The actual table size might be larger,
-                # but without "Rows Removed by Filter", we can't determine it.
-            
-            # If there are filter_columns, calculate per-expression selectivities
-            filter_cols = p.get('filter_columns')
-            if filter_cols and isinstance(filter_cols, dict):
-                selectivity = p.get('overall_selectivity', 1.0)
-                num_filters = count_filter_expressions(filter_cols)
-                if num_filters > 0:
-                    # Approximate: if multiple filters, each contributes to selectivity
-                    # This is a simplification - actual calculation would need
-                    # to understand the filter tree structure
-                    p['estimated_filter_selectivity'] = selectivity
+            # else: No raw data available - don't add enrichment fields
+            # The conversion code will use the old fallback logic (0.1 per filter estimate)
         
         # Increment scan index after processing (only if we had matching scan_info)
         if scan_info is not None:

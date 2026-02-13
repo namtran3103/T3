@@ -16,6 +16,10 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
+from src.zeroshot.operator_stages_patch import apply_zeroshot_operator_stages_patch
+
+apply_zeroshot_operator_stages_patch()
+
 # Default IU size when width not available (bytes).
 MIN_IU_BYTES = 8
 
@@ -45,6 +49,97 @@ def _get_start_stop_us(zs_node: dict) -> tuple[float, float]:
     return start_ms * 1000, total_ms * 1000
 
 
+def _filter_operator_to_expression(operator: str) -> tuple[str, Optional[str]]:
+    """Map zero-shot filter operator to T3 expression type and optional direction."""
+    if operator == "EQ":
+        return "compare", "="
+    if operator in ("GEQ", "GT"):
+        return "compare", ">=" if operator == "GEQ" else ">"
+    if operator in ("LEQ", "LT"):
+        return "compare", "<=" if operator == "LEQ" else "<"
+    if operator == "NEQ":
+        return "compare", "<>"
+    if operator == "LIKE":
+        return "like", None
+    if operator == "IN":
+        return "in", None
+    if operator == "BETWEEN":
+        return "between", None
+    if operator == "STARTSWITH":
+        return "startswith", None
+    if operator == "ISNOTNULL":
+        return "isnotnull", None
+    return "compare", "="
+
+
+def _convert_filter_columns_to_tree(
+    filter_cols: dict, overall_selectivity: Optional[float] = None
+) -> Optional[dict]:
+    """
+    Convert filter_columns tree (zero-shot: operator, children) to query_plan tree format
+    (expression, input). Does not flatten; returns a single nested dict.
+    When overall_selectivity is provided (e.g. from enrichment), set it only on the root
+    so the core can distribute it via _featurize_expression. Otherwise the core uses defaults.
+    """
+    if not isinstance(filter_cols, dict):
+        return None
+
+    operator = (filter_cols.get("operator") or "").strip().upper()
+    children = filter_cols.get("children", [])
+
+    # AND / OR: recursive tree
+    if operator == "AND":
+        if not children:
+            return None
+        input_list = []
+        for child in children:
+            sub = _convert_filter_columns_to_tree(child, None)
+            if sub is not None:
+                input_list.append(sub)
+        if not input_list:
+            return None
+        node: dict = {"expression": "and", "input": input_list}
+        if overall_selectivity is not None and 0 < overall_selectivity <= 1.0:
+            node["estimatedSelectivity"] = overall_selectivity
+        return node
+
+    if operator == "OR":
+        if not children:
+            return None
+        input_list = []
+        for child in children:
+            sub = _convert_filter_columns_to_tree(child, None)
+            if sub is not None:
+                input_list.append(sub)
+        if not input_list:
+            return None
+        node = {"expression": "or", "input": input_list}
+        if overall_selectivity is not None and 0 < overall_selectivity <= 1.0:
+            node["estimatedSelectivity"] = overall_selectivity
+        return node
+
+    # NOT: single child
+    if operator == "NOT":
+        if not children:
+            return None
+        sub = _convert_filter_columns_to_tree(children[0], None)
+        if sub is None:
+            return None
+        node = {"expression": "not", "input": sub}
+        if overall_selectivity is not None and 0 < overall_selectivity <= 1.0:
+            node["estimatedSelectivity"] = overall_selectivity
+        return node
+
+    # Leaf: compare, like, in, between, etc.
+    expr_type, direction = _filter_operator_to_expression(operator)
+    node = {"expression": expr_type}
+    if direction is not None:
+        node["direction"] = direction
+    if overall_selectivity is not None and 0 < overall_selectivity <= 1.0:
+        node["estimatedSelectivity"] = overall_selectivity
+    return node
+
+
 def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> dict:
     """Convert one zero-shot plan node to Umbra-style. Mutates next_id[0]."""
     if not zs_node or not zs_node.get("plan_parameters"):
@@ -72,14 +167,25 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
     if op_name in ("Seq Scan", "Parallel Seq Scan", "Index Scan", "Index Only Scan"):
         out["operator"] = "tablescan"
         out["tablename"] = "unknown"
-        # Avoid schema lookup; use act_children_card or 1 as input size
-        out["inputCardinality"] = int(p.get("act_children_card", p.get("est_children_card", 1)))
-        if out["inputCardinality"] < 0:
-            out["inputCardinality"] = 1
-        # Optional filter_columns -> simple selectivity for expressions (best-effort)
+        # Always use 1 for scan input cardinality (historical zeroshot behaviour; filter method is kept).
+        out["inputCardinality"] = 1
+        
+        # Convert filter_columns to a single tree restriction. Set overall_selectivity at root
+        # only when we have it from enrichment (raw data); otherwise the core uses defaults.
         fc = p.get("filter_columns")
-        if isinstance(fc, dict) and fc.get("column") is not None:
-            out["restrictions"].append({"expression": "compare", "estimatedSelectivity": 0.1})
+        overall_selectivity = p.get("overall_selectivity")
+        if isinstance(fc, dict):
+            tree = _convert_filter_columns_to_tree(fc, overall_selectivity)
+            if tree is not None:
+                out["restrictions"].append(tree)
+        elif fc is not None:
+            # Legacy: simple filter_columns (e.g. just column name)
+            node = {"expression": "compare"}
+            if overall_selectivity is not None and 0 < overall_selectivity <= 1.0:
+                node["estimatedSelectivity"] = overall_selectivity
+            node["direction"] = "="
+            out["restrictions"].append(node)
+
         return out
 
     # Hash Join: map so left=build (inner), right=probe (outer) to match Umbra operator_stages
@@ -104,11 +210,10 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
         out["right"] = _convert_node(outer, next_id, use_actual_card) if outer else _make_placeholder(next_id)
         return out
 
-    # Nested Loop: emit as hashjoin so pipeline/stage parsing succeeds (indexnljoin
-    # triggers assertions in operator_stages when pipeline order differs from expected).
+    # Nested Loop: map to indexnljoin (left=probe/outer, right=build/inner) to match Umbra and pg_to_umbra.
     if op_name == "Nested Loop":
         out["operator"] = "join"
-        out["physicalOperator"] = "hashjoin"
+        out["physicalOperator"] = "indexnljoin"
         out["left"] = _convert_node(children[0], next_id, use_actual_card) if len(children) > 0 else _make_placeholder(next_id)
         out["right"] = _convert_node(children[1], next_id, use_actual_card) if len(children) > 1 else _make_placeholder(next_id)
         return out

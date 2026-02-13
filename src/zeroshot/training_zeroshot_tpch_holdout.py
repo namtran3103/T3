@@ -177,7 +177,7 @@ def train_per_tuple_model(
     seed: int = SEED,
     verbose: bool = True,
 ) -> tuple[PerTupleTreeModel, lgb.Booster]:
-    """Train per-tuple tree model on pipeline feature vectors."""
+    """Train per-tuple tree model on pipeline feature vectors with early stopping and regularization."""
     feature_mapper = FeatureMapper()
     x_vectors = []
     y_values = []

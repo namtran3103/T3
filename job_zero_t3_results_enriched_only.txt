@@ -1,0 +1,20 @@
+# enriched_only filter: plans_total=77 dropped=61 evaluated=16
+
+job_full_c8220_2: pred=9.095165s actual=20.287203s q_error=2.2305
+job_full_c8220_28: pred=1.787629s actual=0.457662s q_error=3.9060
+job_full_c8220_30: pred=1.564386s actual=0.366206s q_error=4.2719
+job_full_c8220_44: pred=2.280596s actual=0.740530s q_error=3.0797
+job_full_c8220_45: pred=2.227088s actual=0.686113s q_error=3.2459
+job_full_c8220_47: pred=2.197730s actual=1.803751s q_error=1.2184
+job_full_c8220_55: pred=2.161332s actual=0.967681s q_error=2.2335
+job_full_c8220_56: pred=1.819237s actual=3.169967s q_error=1.7425
+job_full_c8220_58: pred=1.779047s actual=0.465611s q_error=3.8209
+job_full_c8220_62: pred=3.299219s actual=3.338705s q_error=1.0120
+job_full_c8220_63: pred=3.922667s actual=4.024674s q_error=1.0260
+job_full_c8220_64: pred=3.552766s actual=4.697874s q_error=1.3223
+job_full_c8220_66: pred=3.836890s actual=4.430098s q_error=1.1546
+job_full_c8220_69: pred=5.870374s actual=5.683184s q_error=1.0329
+job_full_c8220_70: pred=2.518582s actual=2.103513s q_error=1.1973
+job_full_c8220_76: pred=10.054993s actual=7.215452s q_error=1.3935
+
+Test set (job_full, enriched_only, 16 queries): q-error avg=2.1180 p50=1.5680 p75=3.1212 p90=3.8634 min=1.0120 max=4.2719
