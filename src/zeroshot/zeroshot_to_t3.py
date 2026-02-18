@@ -169,7 +169,6 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
         out["tablename"] = "unknown"
         # Always use 1 for scan input cardinality (historical zeroshot behaviour; filter method is kept).
         out["inputCardinality"] = 1
-        
         # Convert filter_columns to a single tree restriction. Set overall_selectivity at root
         # only when we have it from enrichment (raw data); otherwise the core uses defaults.
         fc = p.get("filter_columns")

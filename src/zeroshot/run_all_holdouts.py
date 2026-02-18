@@ -1,10 +1,10 @@
 """
 Run holdout training for every benchmark: train on all except one, test on that one.
 
-Calls training_zeroshot_tpch_holdout once per holdout with --holdout <name> and
---out model_zero_holdout_<name>.txt. The holdout script appends each run's results
-to holdout.txt; run_all_holdouts clears holdout.txt at start so the file ends up
-with all holdouts' results in order.
+All models are saved with versioning (base name or _v1, _v2, ...; no overwrite).
+Each run's test summary is appended to holdout.txt (no overwrite).
+For imdb_full: calls training_zeroshot_imdb_full_holdout. For others: calls
+training_zeroshot_tpch_holdout with --holdout <name> and --out model_zero_holdout_<name>.txt.
 
 Usage (from T3 project root):
   python -m src.zeroshot.run_all_holdouts
@@ -72,24 +72,30 @@ def main() -> None:
         sys.exit(1)
 
     holdout_txt = _repo / "holdout.txt"
-    if not args.dry_run and holdout_txt.exists():
-        holdout_txt.write_text("", encoding="utf-8")
-        print(f"Cleared {holdout_txt} for appending.")
-
     for i, holdout in enumerate(HOLDOUTS):
         model_name = f"model_zero_holdout_{holdout}.txt"
-        cmd = [
-            sys.executable,
-            "-m",
-            "src.zeroshot.training_zeroshot_tpch_holdout",
-            "--data",
-            str(data_dir),
-            "--holdout",
-            holdout,
-            "--out",
-            model_name,
-        ]
-        print(f"[{i + 1}/{len(HOLDOUTS)}] holdout={holdout} -> {model_name}")
+        if holdout == "imdb_full":
+            cmd = [
+                sys.executable,
+                "-m",
+                "src.zeroshot.training_zeroshot_imdb_full_holdout",
+                "--data",
+                str(data_dir),
+            ]
+            print(f"[{i + 1}/{len(HOLDOUTS)}] holdout={holdout} -> (imdb_full script, versioned output)")
+        else:
+            cmd = [
+                sys.executable,
+                "-m",
+                "src.zeroshot.training_zeroshot_tpch_holdout",
+                "--data",
+                str(data_dir),
+                "--holdout",
+                holdout,
+                "--out",
+                model_name,
+            ]
+            print(f"[{i + 1}/{len(HOLDOUTS)}] holdout={holdout} -> {model_name}")
         if args.dry_run:
             print("  ", " ".join(cmd))
             continue

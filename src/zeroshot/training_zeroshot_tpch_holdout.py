@@ -1,9 +1,13 @@
 """
-Train T3 on zero-shot parsed plans with TPC-H held out as test set.
+Train T3 on zero-shot parsed plans with one benchmark held out as test set.
 
-Train on all JSONs except those under the TPC-H directory; use TPC-H as the test set
+Train on all JSONs except those under the holdout directory; use the holdout as the test set
 (leave-one-benchmark-out). Same conversion and training as training_zeroshot; only the
-split changes (by path: paths containing the holdout name, e.g. "tpc_h", are test).
+split changes (by path: paths containing the holdout name are test).
+
+If the output file already exists, saves to _v1, _v2, ... (next free number). Appends
+training diagnostics to diagnostics_training.txt and test summary to holdout.txt (append,
+no overwrite).
 
 Usage (from T3 project root):
   python -m src.zeroshot.training_zeroshot_tpch_holdout
@@ -15,6 +19,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -42,6 +47,72 @@ SEED = 42
 HOLDOUT_BENCHMARK = "tpc_h"
 DEFAULT_DATA_DIR = "/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans"
 DEFAULT_MODEL_PATH = "model_zero_tpch_holdout.txt"
+DIAGNOSTICS_FILE = "diagnostics_training.txt"
+
+
+def next_available_model_path(repo: Path, base_path: Path) -> Path:
+    """If base_path exists, return base_path.stem + _vN + suffix for next free N; else return base_path."""
+    resolved = base_path if base_path.is_absolute() else repo / base_path
+    if not resolved.exists():
+        return resolved
+    stem = resolved.stem
+    suffix = resolved.suffix
+    n = 1
+    while True:
+        candidate = resolved.parent / f"{stem}_v{n}{suffix}"
+        if not candidate.exists():
+            return candidate
+        n += 1
+
+
+def _append_training_diagnostics(
+    holdout: str,
+    diagnostics: list[dict],
+    total_queries: int,
+) -> None:
+    """Append training diagnostics to diagnostics_training.txt with timestamp and holdout."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    out_path = _repo / DIAGNOSTICS_FILE
+    lines = [
+        "",
+        "---",
+        f"timestamp={ts}",
+        f"holdout={holdout}",
+        f"train_files={len(diagnostics)}",
+        f"total_queries_used={total_queries}",
+        "",
+    ]
+    total_plans = 0
+    total_added = 0
+    total_skip_no_runtime = 0
+    total_skip_exception = 0
+    files_failed = 0
+    for d in diagnostics:
+        total_plans += d["plans_total"]
+        total_added += d["added"]
+        total_skip_no_runtime += d["skip_no_runtime"]
+        total_skip_exception += d["skip_exception"]
+        if d.get("file_error"):
+            files_failed += 1
+        status = "ok" if d["added"] == d["plans_total"] and not d.get("file_error") else "skipped_some"
+        line = (
+            f"  {d['path']}: plans={d['plans_total']} added={d['added']} "
+            f"skip_no_runtime={d['skip_no_runtime']} skip_exception={d['skip_exception']}"
+        )
+        if d.get("file_error"):
+            line += f" file_error={d['file_error']!r}"
+        line += f" [{status}]"
+        lines.append(line)
+    lines.extend([
+        "",
+        f"total_plans={total_plans} total_added={total_added} "
+        f"total_skip_no_runtime={total_skip_no_runtime} total_skip_exception={total_skip_exception} "
+        f"files_failed={files_failed}",
+        "",
+    ])
+    with open(out_path, "a", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    print(f"Training diagnostics appended to {out_path}")
 
 
 def load_benchmarked_queries_from_zeroshot(
@@ -176,12 +247,20 @@ def train_per_tuple_model(
     queries: list[BenchmarkedQuery],
     seed: int = SEED,
     verbose: bool = True,
+    num_trees: int = 200,
 ) -> tuple[PerTupleTreeModel, lgb.Booster]:
-    """Train per-tuple tree model on pipeline feature vectors with early stopping and regularization."""
+    """Train per-tuple tree model on pipeline feature vectors. num_trees: number of boosting rounds."""
     feature_mapper = FeatureMapper()
+    # Split by query so validation q-error is per-query (total runtime vs total predicted), same as test set.
+    train_idx, val_idx = train_test_split(
+        np.arange(len(queries)), test_size=0.2, random_state=seed
+    )
+    train_queries = [queries[i] for i in train_idx]
+    val_queries = [queries[i] for i in val_idx]
+
     x_vectors = []
     y_values = []
-    for query in queries:
+    for query in train_queries:
         for x, y in query.get_per_tuple_pipeline_runtime_data(feature_mapper):
             if np.any(x != 0):
                 x_vectors.append(x)
@@ -190,13 +269,24 @@ def train_per_tuple_model(
         raise ValueError(
             "No pipeline rows with non-zero features. Check zero-shot plans and conversions."
         )
-    x = np.vstack(x_vectors)
-    y = np.array(y_values)
-    y = np.maximum(y, 1e-15)
-    y = -np.log(y)
-    x_train, x_val, y_train, y_val = train_test_split(
-        x, y, test_size=0.2, random_state=seed
-    )
+    x_train = np.vstack(x_vectors)
+    y_train = np.array(y_values)
+    y_train = np.maximum(y_train, 1e-15)
+    y_train = -np.log(y_train)
+
+    x_val_vec = []
+    y_val_vec = []
+    for query in val_queries:
+        for x, y in query.get_per_tuple_pipeline_runtime_data(feature_mapper):
+            if np.any(x != 0):
+                x_val_vec.append(x)
+                y_val_vec.append(y)
+    x_val = np.vstack(x_val_vec) if x_val_vec else np.zeros((0, x_train.shape[1]))
+    y_val = np.array(y_val_vec) if y_val_vec else np.array([])
+    if len(y_val) > 0:
+        y_val = np.maximum(y_val, 1e-15)
+        y_val = -np.log(y_val)
+
     param = {"objective": "mape", "verbose": 2 if verbose else -1}
     train_data = lgb.Dataset(
         x_train, label=y_train, feature_name=FeatureMapper.get_names(), params=param
@@ -204,14 +294,25 @@ def train_per_tuple_model(
     val_data = lgb.Dataset(x_val, label=y_val, reference=train_data, params=param)
     bst = lgb.Booster(param, train_data)
     bst.add_valid(val_data, "val_data")
+
+    def _val_avg_q_error():
+        if not val_queries:
+            return float("nan")
+        model = PerTupleTreeModel(bst)
+        errors = [
+            q_error(q.get_total_runtime(), model.estimate_runtime(q))
+            for q in val_queries
+        ]
+        return float(np.mean(errors))
+
     if verbose:
-        print("Initial:", bst.eval_train(), bst.eval_valid())
-    for i in range(200):
+        print("Initial:", bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
+    for i in range(num_trees):
         bst.update()
         if verbose and (i + 1) % 50 == 0:
-            print(i + 1, bst.eval_train(), bst.eval_valid())
+            print(i + 1, bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
     if verbose:
-        print("Final:", bst.eval_train(), bst.eval_valid())
+        print("Final:", bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
     return PerTupleTreeModel(bst), bst
 
 
@@ -239,7 +340,7 @@ def main() -> None:
         "--out",
         type=Path,
         default=Path(DEFAULT_MODEL_PATH),
-        help=f"Output model path (default: {DEFAULT_MODEL_PATH})",
+        help=f"Output model path (default: {DEFAULT_MODEL_PATH}; if exists, saves to _v1, _v2, ...)",
     )
     parser.add_argument(
         "--holdout",
@@ -287,16 +388,25 @@ def main() -> None:
     print(f"Train (all except {args.holdout}): {len(train_paths)} files")
     print(f"Test ({args.holdout}): {len(test_paths)} files")
 
-    train_queries = load_benchmarked_queries_from_zeroshot(train_paths)
+    train_queries, train_diagnostics = load_benchmarked_queries_from_zeroshot_with_diagnostics(
+        train_paths
+    )
     if not train_queries:
         print("Error: no train queries could be loaded.")
         sys.exit(1)
     print(f"Loaded {len(train_queries)} train benchmarks (plans)")
 
+    _append_training_diagnostics(
+        holdout=args.holdout,
+        diagnostics=train_diagnostics,
+        total_queries=len(train_queries),
+    )
+
     model, bst = train_per_tuple_model(
         train_queries, seed=args.seed, verbose=not args.quiet
     )
-    out_path = args.out if args.out.is_absolute() else _repo / args.out
+    base_out = args.out if args.out.is_absolute() else _repo / args.out
+    out_path = next_available_model_path(_repo, base_out)
     bst.save_model(str(out_path))
     print(f"Saved model to {out_path}")
 
