@@ -1,6 +1,6 @@
-# Holdout (non-enriched) + JOB Q-Error Report
+# Holdout (trained on all but that instance) + JOB Q-Error Report
 
-## 1. Holdout summary (lines 79–99)
+## 1. Holdout summary
 
 **Datasets:** 21
 
@@ -18,7 +18,7 @@
 
 ![p50 bars](holdout_job_p50_bars.png)
 
-## 2. JOB full q-error (all queries)
+## 2. JOB full q-error (dataset only contained 77 out of 113), therefore p75 mark out of 77 approx. p50 mark out of 113 
 
 **Queries:** 77
 
