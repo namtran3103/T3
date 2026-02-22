@@ -8,7 +8,8 @@ Supports single-block or grouped input. Grouped input uses lines like:
   Test set (...): ...
 
 Optional --start-line / --end-line restrict parsing to a line range (e.g. 53-99).
-For each group: results table, p50 bar chart, and averages (avg, p50, p90, min, max).
+For each group: results table, p50 bar chart, and medians (over datasets) for avg, p50, p90, min, max.
+Optional --jh FILE (with --jh-start-line / --jh-end-line) adds a third section from JH-format lines (holdout=... n=...).
 """
 
 import re
@@ -30,6 +31,11 @@ LINE_PATTERN = re.compile(
     r"Test set \((\w+),\s*(\d+)\s*queries\):\s*q-error\s+"
     r"avg=([\d.]+)\s+p50=([\d.]+)\s+p90=([\d.]+)\s+"
     r"min=([\d.]+)\s+max=([\d.]+)"
+)
+# Pattern: holdout=NAME n=N min= max= avg= p50= p75= p90=
+LINE_PATTERN_JH = re.compile(
+    r"holdout=(\w+)\s+n=(\d+)\s+min=([\d.]+)\s+max=([\d.]+)\s+avg=([\d.]+)\s+"
+    r"p50=([\d.]+)\s+p75=([\d.]+)\s+p90=([\d.]+)"
 )
 GROUP_HEADER = re.compile(r"^---\s*(.+)$")
 
@@ -56,6 +62,27 @@ def parse_holdout_lines(lines: list[str]) -> list[dict]:
                 "p90": float(m.group(5)),
                 "min": float(m.group(6)),
                 "max": float(m.group(7)),
+            })
+    return rows
+
+
+def parse_holdout_jh_lines(lines: list[str]) -> list[dict]:
+    """Parse 'holdout=NAME n=N min= ... p50= ... p90= ...' lines into row dicts (same shape as parse_holdout_lines)."""
+    rows = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        m = LINE_PATTERN_JH.match(line)
+        if m:
+            rows.append({
+                "dataset": m.group(1),
+                "queries": int(m.group(2)),
+                "min": float(m.group(3)),
+                "max": float(m.group(4)),
+                "avg": float(m.group(5)),
+                "p50": float(m.group(6)),
+                "p90": float(m.group(8)),  # p75 is group 7
             })
     return rows
 
@@ -93,14 +120,22 @@ def format_num(x: float) -> str:
     return f"{x:.4f}"
 
 
-def _averages(rows: list[dict]) -> dict[str, float]:
-    n = len(rows)
+def _median(vals: list[float]) -> float:
+    n = len(vals)
+    if not n:
+        return 0.0
+    s = sorted(vals)
+    mid = n // 2
+    return (s[mid] + s[mid - 1]) / 2.0 if n % 2 == 0 else s[mid]
+
+
+def _medians(rows: list[dict]) -> dict[str, float]:
     return {
-        "avg": sum(r["avg"] for r in rows) / n,
-        "p50": sum(r["p50"] for r in rows) / n,
-        "p90": sum(r["p90"] for r in rows) / n,
-        "min": sum(r["min"] for r in rows) / n,
-        "max": sum(r["max"] for r in rows) / n,
+        "avg": _median([r["avg"] for r in rows]),
+        "p50": _median([r["p50"] for r in rows]),
+        "p90": _median([r["p90"] for r in rows]),
+        "min": _median([r["min"] for r in rows]),
+        "max": _median([r["max"] for r in rows]),
     }
 
 
@@ -138,19 +173,34 @@ def main() -> None:
     import argparse
     ap = argparse.ArgumentParser(description="Generate markdown report from holdout result file (single or grouped).")
     ap.add_argument("--input", type=Path, default=None, help="Input file (default: holdout.txt).")
+    ap.add_argument("--output", type=Path, default=None, help="Output markdown file (default: {input_stem}_results.md).")
     ap.add_argument("--start-line", type=int, default=None, help="First line to parse (1-based).")
     ap.add_argument("--end-line", type=int, default=None, help="Last line to parse (1-based).")
+    ap.add_argument("--jh", type=Path, default=None, help="Optional JH-format file for a third section (e.g. holdout_jh.txt).")
+    ap.add_argument("--jh-start-line", type=int, default=None, help="First line in JH file (1-based).")
+    ap.add_argument("--jh-end-line", type=int, default=None, help="Last line in JH file (1-based).")
     args = ap.parse_args()
     input_path = args.input if args.input is not None else HOLDOUT_FILE
     if not input_path.is_absolute():
         input_path = Path(__file__).parent / input_path
     parent = input_path.parent
     base = input_path.stem
-    output_md = parent / f"{base}_results.md"
+    output_md = args.output if args.output is not None else parent / f"{base}_results.md"
+    if not output_md.is_absolute():
+        output_md = Path(__file__).parent / output_md
 
     groups = parse_holdout_groups(input_path, args.start_line, args.end_line)
+    if args.jh is not None:
+        jh_path = args.jh if args.jh.is_absolute() else Path(__file__).parent / args.jh
+        jh_lines = jh_path.read_text().strip().splitlines()
+        one_indexed = 1
+        start = (args.jh_start_line or 1) - one_indexed
+        end = (args.jh_end_line or len(jh_lines)) if args.jh_end_line is not None else len(jh_lines)
+        jh_rows = parse_holdout_jh_lines(jh_lines[start:end])
+        if jh_rows:
+            groups.append(("all jh", jh_rows))
     if not groups:
-        print("No groups parsed from", input_path)
+        print("No groups parsed from", input_path, "or JH file")
         return
 
     md_lines = [
@@ -162,7 +212,7 @@ def main() -> None:
         slug = _slug(group_name)
         total_queries = sum(r["queries"] for r in rows)
         n = len(rows)
-        avgs = _averages(rows)
+        meds = _medians(rows)
         bar_path = parent / f"{base}_{slug}_p50_bars.png"
 
         md_lines.extend([
@@ -189,15 +239,15 @@ def main() -> None:
             "",
             chart_md,
             "",
-            "### Averages (over datasets)",
+            "### Medians (over datasets)",
             "",
             "| Metric | Value |",
             "|--------|------:|",
-            f"| **avg** | {format_num(avgs['avg'])} |",
-            f"| **p50** | {format_num(avgs['p50'])} |",
-            f"| **p90** | {format_num(avgs['p90'])} |",
-            f"| **min** | {format_num(avgs['min'])} |",
-            f"| **max** | {format_num(avgs['max'])} |",
+            f"| **avg** | {format_num(meds['avg'])} |",
+            f"| **p50** | {format_num(meds['p50'])} |",
+            f"| **p90** | {format_num(meds['p90'])} |",
+            f"| **min** | {format_num(meds['min'])} |",
+            f"| **max** | {format_num(meds['max'])} |",
             "",
         ])
 

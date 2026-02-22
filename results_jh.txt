@@ -1,0 +1,6 @@
+2026-02-22T18:14:52Z model=model_jh_holdout_v3.txt n=72 min=1.0285 max=20.2298 avg=2.8193 p50=1.8833 p75=3.2028 p90=4.8738
+2026-02-22T18:17:08Z model=model_jh_holdout_v3.txt n=72 min=1.0285 max=20.2298 avg=2.8193 p50=1.8833 p75=3.2028 p90=4.8738
+2026-02-22T18:18:04Z model=model_jh_holdout_v3.txt n=72 min=1.0285 max=20.2298 avg=2.8193 p50=1.8833 p75=3.2028 p90=4.8738
+2026-02-22T18:18:43Z model=model_jh_holdout_v3.txt n=72 min=1.0285 max=20.2298 avg=2.8193 p50=1.8833 p75=3.2028 p90=4.8738
+2026-02-22T18:18:49Z model=model_jh_holdout_v3.txt n=72 min=1.0285 max=20.2298 avg=2.8193 p50=1.8833 p75=3.2028 p90=4.8738
+2026-02-22T18:19:21Z model=model_jh_holdout_v3.txt n=77 min=1.0285 max=20.2298 avg=2.7908 p50=1.8891 p75=3.1813 p90=4.8333
