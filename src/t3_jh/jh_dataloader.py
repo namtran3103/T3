@@ -171,11 +171,12 @@ def extract_pipeline_infos(parsed_plan: dict, pipelines: list, root: bool = True
                 runtime=total_plan_runtime - child_pipelines_runtime,
             ),
         )
-        pipeline_runtimes = [p["duration"] for p in pipelines]
-        if not np.isclose(np.sum(pipeline_runtimes), total_plan_runtime):
-            scale = total_plan_runtime / max(1e-9, np.sum(pipeline_runtimes))
+        pipeline_runtimes = [float(p.get("duration") or 0) for p in pipelines]
+        total_runtime_sum = sum(pipeline_runtimes)
+        if total_runtime_sum >= 1e-9 and not np.isclose(total_runtime_sum, total_plan_runtime):
+            scale = total_plan_runtime / total_runtime_sum
             for p in pipelines:
-                p["duration"] *= scale
+                p["duration"] = float(p.get("duration") or 0) * scale
         add_order_to_pipelines(pipelines)
         return None, total_plan_runtime
 
@@ -401,6 +402,8 @@ def load_parsed_plans_from_json(
                     name=name,
                     query_text="",
                     query_category=None,
+                    source_path=str(jpath),
+                    plan_index=idx,
                 )
                 all_queries.append(bq)
                 diag["added"] += 1

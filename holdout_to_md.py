@@ -10,6 +10,8 @@ Supports single-block or grouped input. Grouped input uses lines like:
 Optional --start-line / --end-line restrict parsing to a line range (e.g. 53-99).
 For each group: results table, p50 bar chart, and medians (over datasets) for avg, p50, p90, min, max.
 Optional --jh FILE (with --jh-start-line / --jh-end-line) adds a third section from JH-format lines (holdout=... n=...).
+Optional --jh2 FILE (with --jh2-start-line / --jh2-end-line / --jh2-title) adds a fourth section from a second JH block.
+Optional --extra-start-line / --extra-end-line / --extra-title add a section from an extra line range in the main input file.
 """
 
 import re
@@ -179,6 +181,13 @@ def main() -> None:
     ap.add_argument("--jh", type=Path, default=None, help="Optional JH-format file for a third section (e.g. holdout_jh.txt).")
     ap.add_argument("--jh-start-line", type=int, default=None, help="First line in JH file (1-based).")
     ap.add_argument("--jh-end-line", type=int, default=None, help="Last line in JH file (1-based).")
+    ap.add_argument("--jh2", type=Path, default=None, help="Optional second JH-format file for a fourth section.")
+    ap.add_argument("--jh2-start-line", type=int, default=None, help="First line in JH2 file (1-based).")
+    ap.add_argument("--jh2-end-line", type=int, default=None, help="Last line in JH2 file (1-based).")
+    ap.add_argument("--jh2-title", type=str, default="all jh (fixed)", help="Title for the fourth section (default: all jh (fixed)).")
+    ap.add_argument("--extra-start-line", type=int, default=None, help="Extra block: first line in input file (1-based).")
+    ap.add_argument("--extra-end-line", type=int, default=None, help="Extra block: last line in input file (1-based).")
+    ap.add_argument("--extra-title", type=str, default="full run with fix", help="Title for the extra block section.")
     args = ap.parse_args()
     input_path = args.input if args.input is not None else HOLDOUT_FILE
     if not input_path.is_absolute():
@@ -199,6 +208,24 @@ def main() -> None:
         jh_rows = parse_holdout_jh_lines(jh_lines[start:end])
         if jh_rows:
             groups.append(("all jh", jh_rows))
+    if args.jh2 is not None:
+        jh2_path = args.jh2 if args.jh2.is_absolute() else Path(__file__).parent / args.jh2
+        jh2_lines = jh2_path.read_text().strip().splitlines()
+        one_indexed = 1
+        start = (args.jh2_start_line or 1) - one_indexed
+        end = (args.jh2_end_line or len(jh2_lines)) if args.jh2_end_line is not None else len(jh2_lines)
+        jh2_rows = parse_holdout_jh_lines(jh2_lines[start:end])
+        if jh2_rows:
+            groups.append((args.jh2_title, jh2_rows))
+    if args.extra_start_line is not None and args.extra_end_line is not None:
+        all_input = input_path.read_text().strip().splitlines()
+        one_indexed = 1
+        start = args.extra_start_line - one_indexed
+        end = args.extra_end_line
+        extra_lines = all_input[start:end]
+        extra_rows = parse_holdout_lines(extra_lines)
+        if extra_rows:
+            groups.append((args.extra_title, extra_rows))
     if not groups:
         print("No groups parsed from", input_path, "or JH file")
         return

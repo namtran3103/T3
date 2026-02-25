@@ -220,33 +220,45 @@ class QueryPlan:
 
         if current_op.op_id in self.operators:
             self.operators[current_op.op_id].parents.extend(parent)
-            return
+            # Recurse anyway so every node gets an operator (avoids missing op_ids when
+            # the same node is reachable from multiple paths and we took the other path first).
 
-        if operator_type.is_join_type():
-            self._parse_operator(op["left"], [current_op], card_type=card_type)
-            self._parse_operator(op["right"], [current_op], card_type=card_type)
-        elif operator_type == OperatorType.MultiWayJoin:
+        def recurse_and_annotate(child_op: dict) -> None:
+            self._parse_operator(child_op, [current_op], card_type=card_type)
+            child_obj = self.operators.get(child_op["plan_parameters"]["op_id"])
+            if child_obj is not None:
+                self._annotate_child(current_op, child_obj)
+
+        if operator_type == OperatorType.MultiWayJoin:
             for inp in op.get("inputs", []):
-                self._parse_operator(inp.get("op", inp), [current_op], card_type=card_type)
+                recurse_and_annotate(inp.get("op", inp))
         elif operator_type == OperatorType.PipelineBreakerScan:
             if "pipelineBreaker" in op:
-                self._parse_operator(op["pipelineBreaker"], [current_op], card_type=card_type)
+                recurse_and_annotate(op["pipelineBreaker"])
+        elif operator_type == OperatorType.SetOperation:
+            for a in op.get("arguments", []):
+                recurse_and_annotate(a.get("input", a))
         elif operator_type in (
             OperatorType.TableScan,
             OperatorType.InlineTable,
             OperatorType.IdxScan,
         ):
-            pass
-        elif operator_type == OperatorType.SetOperation:
-            for a in op.get("arguments", []):
-                self._parse_operator(a.get("input", a), [current_op], card_type=card_type)
+            # Some scans have "input" (e.g. Bitmap Heap Scan -> Bitmap Index Scan); recurse so
+            # every node gets an operator and pipeline op_ids resolve.
+            if "input" in op and op["input"] is not None:
+                recurse_and_annotate(op["input"])
         else:
-            self._parse_operator(op["input"], [current_op], card_type=card_type)
+            if "input" in op:
+                recurse_and_annotate(op["input"])
+            if "left" in op:
+                recurse_and_annotate(op["left"])
+            if "right" in op and op["right"] is not None:
+                recurse_and_annotate(op["right"])
 
         for p in parent:
             self._annotate_child(p, current_op)
-        assert current_op.op_id not in self.operators
-        self.operators[current_op.op_id] = current_op
+        if current_op.op_id not in self.operators:
+            self.operators[current_op.op_id] = current_op
 
     def _get_operator_pipelines(self) -> dict:
         result = {}
@@ -319,7 +331,14 @@ class QueryPlan:
             if op_ids == [0] and 0 not in operator_dict and pipeline["duration"] == 0:
                 continue
             ops = [operator_dict.get(op_id) for op_id in op_ids]
-            if any(o is None for o in ops):
+            missing_ids = [op_id for op_id in op_ids if operator_dict.get(op_id) is None]
+            if missing_ids:
+                print(
+                    f"build_pipelines: pipeline with op_ids {op_ids} has missing op_ids "
+                    f"{missing_ids} (keeping {len(op_ids) - len(missing_ids)} ops)"
+                )
+            ops = [o for o in ops if o is not None]
+            if not ops:
                 continue
             ops.sort(key=cmp_to_key(lambda b, a: a.precedes(b)))
             start = float(pipeline["start"])

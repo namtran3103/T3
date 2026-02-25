@@ -12,7 +12,7 @@ echo "Generating holdout markdown reports..."
 python holdout_to_md.py
 echo "  -> holdout_results.md"
 
-python holdout_to_md.py --input holdout.txt --start-line 53 --end-line 99 --output holdout_results_new.md --jh holdout_jh.txt --jh-start-line 17 --jh-end-line 38
+python holdout_to_md.py --input holdout.txt --start-line 53 --end-line 99 --output holdout_results_new.md --jh holdout_jh.txt --jh-start-line 17 --jh-end-line 38 --jh2 holdout_jh.txt --jh2-start-line 51 --jh2-end-line 72 --jh2-title "all jh (fixed)" --extra-start-line 112 --extra-end-line 132 --extra-title "full run with fix"
 echo "  -> holdout_results_new.md"
 
 python holdout_to_md.py --input holdout_augmented.txt

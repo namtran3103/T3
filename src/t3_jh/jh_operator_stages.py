@@ -98,13 +98,14 @@ class Pipeline:
     def get_pipeline_scan_cardinality(self) -> float:
         if len(self.operators) == 0:
             return 0
-        if self.operators[0].operator.type in (
+        first = self.operators[0].operator
+        if first.type in (
             OperatorType.GroupBy,
             OperatorType.Sort,
             OperatorType.Temp,
         ):
-            return self.operators[0].operator.output_cardinality
-        return self.operators[0].operator.input_cardinality
+            return first.output_cardinality
+        return first.input_cardinality
 
     def get_pipeline_sink_cardinality(self) -> float:
         if self.operators[-1].operator.type == OperatorType.GroupBy:

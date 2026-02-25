@@ -1,7 +1,9 @@
 """
-Zeroshot-only patch for operator_stages: relax IndexNLJoin so pipelines that have
-left-subtree nodes (Select, Temp, etc.) before the join do not assert. Keeps
-operator_stages.py untouched; applied when zeroshot conversion/training/eval runs.
+Zeroshot-only patch for operator_stages: relax join stage detection so pipelines that have
+ops from the join's left/right subtree (not only the direct child) before the join do not assert.
+E.g. after the pipeline fix, join is in the same pipeline as its right (probe) subtree; the op
+before the join can be deep in that subtree. Keeps operator_stages.py untouched; applied when
+zeroshot conversion/training/eval runs.
 """
 
 
@@ -17,7 +19,7 @@ def _json_in_subtree(node_json: dict, root_json: dict) -> bool:
 
 
 def apply_zeroshot_operator_stages_patch() -> None:
-    """Patch get_operator_stage so IndexNLJoin accepts previous op in left/right subtree (not only direct child)."""
+    """Patch get_operator_stage so HashJoin and IndexNLJoin accept previous op anywhere in left/right subtree."""
     import src.operator_stages as _stages
     from src.operators import OperatorType
     from src.operator_stages import OperatorStage
@@ -25,9 +27,22 @@ def apply_zeroshot_operator_stages_patch() -> None:
     _original = _stages.get_operator_stage
 
     def _patched_get_operator_stage(op_index: int, op, pipeline_ops: list) -> OperatorStage:
+        # HashJoin: join is in probe pipeline with right subtree; previous op can be anywhere in that subtree
+        if op.type == OperatorType.HashJoin:
+            assert op_index > 0, "join should not be at start of pipeline"
+            input_op = pipeline_ops[op_index - 1]
+            in_left = op.json.get("left") and _json_in_subtree(input_op.json, op.json["left"])
+            in_right = op.json.get("right") and _json_in_subtree(input_op.json, op.json["right"])
+            if in_right:
+                return OperatorStage.Probe
+            if in_left:
+                return OperatorStage.Build
+            return _original(op_index, op, pipeline_ops)
+
         if op.type != OperatorType.IndexNLJoin:
             return _original(op_index, op, pipeline_ops)
-        # Zeroshot: allow previous op to be in left/right subtree (not only direct left/right child)
+        # IndexNLJoin: allow previous op to be in left/right subtree (not only direct child).
+        # Core has features only for IndexNLJoin-Probe; treat Build as Probe so feature extraction succeeds.
         assert op_index > 0
         input_op = pipeline_ops[op_index - 1]
         in_left = op.json.get("left") and _json_in_subtree(input_op.json, op.json["left"])
@@ -37,8 +52,8 @@ def apply_zeroshot_operator_stages_patch() -> None:
         if op_index != len(pipeline_ops) - 1:
             return OperatorStage.Probe
         elif len(op.parents) == 0:
-            return OperatorStage.Probe if in_left else OperatorStage.Build
+            return OperatorStage.Probe
         else:
-            return OperatorStage.Build if in_right else OperatorStage.Probe
+            return OperatorStage.Probe
 
     _stages.get_operator_stage = _patched_get_operator_stage

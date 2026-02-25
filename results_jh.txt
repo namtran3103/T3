@@ -4,3 +4,5 @@
 2026-02-22T18:18:43Z model=model_jh_holdout_v3.txt n=72 min=1.0285 max=20.2298 avg=2.8193 p50=1.8833 p75=3.2028 p90=4.8738
 2026-02-22T18:18:49Z model=model_jh_holdout_v3.txt n=72 min=1.0285 max=20.2298 avg=2.8193 p50=1.8833 p75=3.2028 p90=4.8738
 2026-02-22T18:19:21Z model=model_jh_holdout_v3.txt n=77 min=1.0285 max=20.2298 avg=2.7908 p50=1.8891 p75=3.1813 p90=4.8333
+
+2026-02-23T19:43:09Z model=model_jh_holdout_imdb_full_v1.txt n=77 min=1.0002 max=14.3321 avg=2.5651 p50=2.0624 p75=3.0255 p90=4.4236

@@ -202,13 +202,13 @@ def _assign_pipelines(
     op = node.get("operator", "")
     phys = node.get("physicalOperator", "")
 
-    # Joins: node and left in current pipeline, right in new (so join is Probe in T3; Build side separate).
+    # Joins: build side (left) in current pipeline; join + probe side (right) in next pipeline (per paper figure).
     if op == "join" and phys in ("hashjoin", "indexnljoin"):
-        pipeline_by_id[nid] = current_pipeline[0]
         _assign_pipelines(node["left"], pipeline_by_id, current_pipeline, next_pipeline_id)
         next_pipeline_id[0] += 1
+        pipeline_by_id[nid] = next_pipeline_id[0]
         _assign_pipelines(node["right"], pipeline_by_id, [next_pipeline_id[0]], next_pipeline_id)
-        return current_pipeline[0]
+        return next_pipeline_id[0]
 
     # Pipeline breakers: input stays in current, this node starts a new pipeline.
     if _is_pipeline_breaker(node):

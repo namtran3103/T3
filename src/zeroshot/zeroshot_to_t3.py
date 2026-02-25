@@ -302,11 +302,10 @@ def _assign_pipelines(
     phys = node.get("physicalOperator", "")
 
     if op == "join" and phys in ("hashjoin", "indexnljoin"):
-        pipeline_by_id[nid] = current_pipeline[0]
+        # Build side (left) in current pipeline; join + probe side (right) in next pipeline (per paper figure).
         left_node = node["left"]
         left_nid = left_node.get("analyzePlanId") if isinstance(left_node, dict) else None
         if left_nid is not None and _is_pipeline_breaker(left_node):
-            # Keep direct left child in join's pipeline so operator_stages sees it as previous op.
             pipeline_by_id[left_nid] = current_pipeline[0]
             next_pipeline_id[0] += 1
             _assign_pipelines_children(left_node, pipeline_by_id, [next_pipeline_id[0]], next_pipeline_id)
@@ -314,8 +313,9 @@ def _assign_pipelines(
         else:
             _assign_pipelines(node["left"], pipeline_by_id, current_pipeline, next_pipeline_id)
             next_pipeline_id[0] += 1
+        pipeline_by_id[nid] = next_pipeline_id[0]
         _assign_pipelines(node["right"], pipeline_by_id, [next_pipeline_id[0]], next_pipeline_id)
-        return current_pipeline[0]
+        return next_pipeline_id[0]
 
     if _is_pipeline_breaker(node):
         if "input" in node and isinstance(node["input"], dict):

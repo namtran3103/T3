@@ -17,6 +17,8 @@ class BenchmarkedQuery:
     query_category: Optional[str]
     feature_matrix: Optional[np.ndarray] = None
     pipeline_runtimes: Optional[list] = None
+    source_path: Optional[str] = None  # full path to JSON file (for debug/zeroshot matching)
+    plan_index: Optional[int] = None  # index of plan in file (for debug/zeroshot matching)
 
     def get_total_runtime(self) -> float:
         return float(np.median(self.total_runtimes))

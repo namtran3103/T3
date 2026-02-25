@@ -55,4 +55,20 @@ python -m src.t3_jh.run_full_benchmark_jh --data /path/to/parsed_plans --dry-run
 - `eval_jh.py`: Load model, evaluate on JSONs, append min/max/avg/p50/p75/p90.
 - `run_full_benchmark_jh.py`: Loop over holdouts and run training (like zeroshot `run_all_holdouts`).
 
+### Debug highest-error queries (feature vectors)
+
+To track down why some test queries get very high q-errors (e.g. holdout good except a few extreme values):
+
+```bash
+python -m src.t3_jh.debug_holdout_max_error --holdout tpc_h
+python -m src.t3_jh.debug_holdout_max_error --holdout walmart --top 20 --out debug_walmart.md
+python -m src.t3_jh.debug_holdout_max_error --holdout tpc_h --zeroshot-model model_zero_holdout_tpc_h.txt
+```
+
+- Loads the holdout test set and the holdout model, computes q-error per query, and writes a report for the **top-k** highest-error queries (default `--top 10`).
+- For each, the report includes: **actual**, **pred (holdout)**, **q_error**, **source file** and **plan_index**, and **per-pipeline feature vectors** (non-zero entries with feature names) plus scan sizes and actual vs predicted runtime per pipeline.
+- With `--zeroshot-model`, loads the same plan via the zeroshot pipeline and adds **zeroshot prediction** and **zeroshot feature vector** for comparison (to see if the issue is feature extraction or model).
+
+Output: `debug_holdout_<holdout>.md` (or `--out`).
+
 Core T3/Umbra files under `src/` are not modified; this package is self-contained under `src/t3_jh/`.

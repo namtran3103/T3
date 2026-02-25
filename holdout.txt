@@ -97,3 +97,36 @@ Test set (ssb, 15000 queries): q-error avg=1.8590 p50=1.4927 p90=3.2438 min=1.00
 Test set (tournament, 15000 queries): q-error avg=3.2822 p50=2.3033 p90=6.6587 min=1.0000 max=77.8620
 Test set (tpc_h, 15000 queries): q-error avg=3.0304 p50=1.8844 p90=7.0460 min=1.0000 max=28.3949
 Test set (walmart, 15000 queries): q-error avg=2.1480 p50=1.7399 p90=3.5430 min=1.0001 max=18.6463
+
+
+
+
+----test the pipeline breakers again, suspect bug probe/build wrong pipeline breaker, 1st before, second after fix:
+
+Test set (imdb_full, 50799 queries): q-error avg=2.3884 p50=1.8320 p90=4.3705 min=1.0000 max=31.3243
+
+this after fix:
+Test set (imdb_full, 50799 queries): q-error avg=2.1243 p50=1.7635 p90=3.5648 min=1.0000 max=20.8576
+
+----now a full run with fix:
+Test set (accidents, 14999 queries): q-error avg=3.9373 p50=3.4277 p90=7.2079 min=1.0000 max=28.4418
+Test set (airline, 15000 queries): q-error avg=2.4252 p50=1.7528 p90=4.6459 min=1.0001 max=20.4491
+Test set (baseball, 15000 queries): q-error avg=3.8467 p50=2.9395 p90=7.6007 min=1.0000 max=49.8400
+Test set (basketball, 14998 queries): q-error avg=2.5107 p50=1.7721 p90=4.7378 min=1.0000 max=24.0255
+Test set (carcinogenesis, 14934 queries): q-error avg=2.0670 p50=1.5179 p90=3.6116 min=1.0000 max=38.3017
+Test set (consumer, 15000 queries): q-error avg=1.6111 p50=1.3263 p90=2.4976 min=1.0000 max=7.6735
+Test set (credit, 14997 queries): q-error avg=2.0551 p50=1.4368 p90=3.7907 min=1.0001 max=43.9560
+Test set (employee, 14975 queries): q-error avg=3.0077 p50=2.4254 p90=5.6348 min=1.0001 max=20.1360
+Test set (fhnk, 14997 queries): q-error avg=2.0111 p50=1.4879 p90=3.9397 min=1.0000 max=12.0392
+Test set (financial, 14221 queries): q-error avg=3.2276 p50=2.7577 p90=5.8538 min=1.0001 max=32.4113
+Test set (geneea, 15000 queries): q-error avg=3.6226 p50=2.1195 p90=8.2382 min=1.0000 max=29.9247
+Test set (genome, 14995 queries): q-error avg=2.3586 p50=1.9159 p90=4.0256 min=1.0002 max=16.1503
+Test set (hepatitis, 14989 queries): q-error avg=3.1335 p50=2.1981 p90=4.8739 min=1.0000 max=36.6594
+Test set (imdb, 31426 queries): q-error avg=3.4474 p50=1.9884 p90=6.5418 min=1.0000 max=60.6181
+Test set (imdb_full, 50799 queries): q-error avg=2.1243 p50=1.7635 p90=3.5648 min=1.0000 max=20.8576
+Test set (movielens, 14999 queries): q-error avg=2.9109 p50=2.4275 p90=5.5089 min=1.0001 max=15.9705
+Test set (seznam, 14994 queries): q-error avg=2.2964 p50=1.8481 p90=4.0850 min=1.0002 max=13.6286
+Test set (ssb, 15000 queries): q-error avg=1.4992 p50=1.2887 p90=2.1939 min=1.0000 max=10.3557
+Test set (tournament, 15000 queries): q-error avg=2.3356 p50=1.5872 p90=4.5251 min=1.0000 max=49.6177
+Test set (tpc_h, 15000 queries): q-error avg=2.6454 p50=1.6619 p90=5.8451 min=1.0001 max=26.9295
+Test set (walmart, 15000 queries): q-error avg=2.3672 p50=2.0987 p90=3.7775 min=1.0001 max=14.8415
