@@ -4127,3 +4127,14 @@ total_queries_used=351323
   /Users/namtran/Downloads/zero-shot-data/runs/parsed_plans/movielens/workload_100k_s1_c8220.json: plans=5000 added=5000 skip_runtime=0 skip_exception=0
   /Users/namtran/Downloads/zero-shot-data/runs/parsed_plans/movielens/complex_workload_200k_s1_c8220.json: plans=4999 added=4999 skip_runtime=0 skip_exception=0
   /Users/namtran/Downloads/zero-shot-data/runs/parsed_plans/movielens/index_workload_100k_s2_c8220.json: plans=5000 added=5000 skip_runtime=0 skip_exception=0
+
+---
+timestamp=2026-02-28T15:30:33Z
+holdout=imdb_full
+train_files=4
+total_queries_used=50799
+
+  /Users/namtran/Downloads/zero-shot-data/runs/parsed_plans/imdb_full/complex_workload_400k_s5_c8220.json: plans=16921 added=16921 skip_runtime=0 skip_exception=0
+  /Users/namtran/Downloads/zero-shot-data/runs/parsed_plans/imdb_full/job_full_c8220.json: plans=77 added=77 skip_runtime=0 skip_exception=0
+  /Users/namtran/Downloads/zero-shot-data/runs/parsed_plans/imdb_full/complex_workload_400k_s6_c8220.json: plans=16904 added=16904 skip_runtime=0 skip_exception=0
+  /Users/namtran/Downloads/zero-shot-data/runs/parsed_plans/imdb_full/complex_workload_400k_s4_c8220.json: plans=16897 added=16897 skip_runtime=0 skip_exception=0

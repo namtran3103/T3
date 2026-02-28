@@ -1,0 +1,215 @@
+"""
+Train T3 on zero-shot parsed plans with ALL data, then test on one holdout only.
+
+Train on every JSON file (no holdout); test set is the specified holdout (e.g. imdb_full).
+So the test set is included in training — measures performance on that benchmark when
+the model has seen it. Default holdout is imdb_full.
+Output model: model_zero_trainall_holdout_<holdout>.txt (or _v1, _v2, ... if exists).
+Appends results to holdout.txt.
+
+Usage (from T3 project root):
+  python -m src.zeroshot.training_zeroshot_trainall_test_holdout
+  python -m src.zeroshot.training_zeroshot_trainall_test_holdout --holdout tpc_h
+  python -m src.zeroshot.training_zeroshot_trainall_test_holdout --data /path/to/parsed_plans
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+_repo = Path(__file__).resolve().parent.parent.parent
+if str(_repo) not in sys.path:
+    sys.path.insert(0, str(_repo))
+
+import numpy as np
+from src.metrics import q_error
+from src.zeroshot.training_zeroshot_tpch_holdout import (
+    load_benchmarked_queries_from_zeroshot,
+    load_benchmarked_queries_from_zeroshot_with_diagnostics,
+    train_per_tuple_model,
+    next_available_model_path,
+    SEED,
+)
+from src.zeroshot.zeroshot_to_t3 import collect_all_zeroshot_jsons
+
+DIAGNOSTICS_FILE = "diagnostics_training.txt"
+DEFAULT_HOLDOUT = "imdb_full"
+DEFAULT_MODEL_PREFIX = "model_zero_trainall_holdout"
+DEFAULT_DATA_DIR = "/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans"
+
+
+def get_holdout_paths(all_paths: list[Path], holdout_name: str) -> list[Path]:
+    """Return paths that contain the holdout name (e.g. imdb_full in path parts)."""
+    return [p for p in all_paths if holdout_name in p.parts]
+
+
+def _append_training_diagnostics(
+    holdout: str,
+    diagnostics: list[dict],
+    total_queries: int,
+    mode: str = "trainall_test_holdout",
+) -> None:
+    """Append training diagnostics to diagnostics_training.txt."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    out_path = _repo / DIAGNOSTICS_FILE
+    lines = [
+        "",
+        "---",
+        f"timestamp={ts}",
+        f"holdout={holdout}",
+        f"mode={mode}",
+        f"train_files={len(diagnostics)}",
+        f"total_queries_used={total_queries}",
+        "",
+    ]
+    total_plans = 0
+    total_added = 0
+    total_skip_no_runtime = 0
+    total_skip_exception = 0
+    files_failed = 0
+    for d in diagnostics:
+        total_plans += d["plans_total"]
+        total_added += d["added"]
+        total_skip_no_runtime += d["skip_no_runtime"]
+        total_skip_exception += d["skip_exception"]
+        if d.get("file_error"):
+            files_failed += 1
+        status = "ok" if d["added"] == d["plans_total"] and not d.get("file_error") else "skipped_some"
+        line = (
+            f"  {d['path']}: plans={d['plans_total']} added={d['added']} "
+            f"skip_no_runtime={d['skip_no_runtime']} skip_exception={d['skip_exception']}"
+        )
+        if d.get("file_error"):
+            line += f" file_error={d['file_error']!r}"
+        line += f" [{status}]"
+        lines.append(line)
+    lines.extend([
+        "",
+        f"total_plans={total_plans} total_added={total_added} "
+        f"total_skip_no_runtime={total_skip_no_runtime} total_skip_exception={total_skip_exception} "
+        f"files_failed={files_failed}",
+        "",
+    ])
+    with open(out_path, "a", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    print(f"Training diagnostics appended to {out_path}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Train T3 on all zero-shot data, test on one holdout (train set includes test set)."
+    )
+    parser.add_argument(
+        "--data",
+        type=Path,
+        default=Path(DEFAULT_DATA_DIR),
+        help=f"Root directory containing zero-shot JSON files (default: {DEFAULT_DATA_DIR})",
+    )
+    parser.add_argument(
+        "--holdout",
+        type=str,
+        default=DEFAULT_HOLDOUT,
+        help=f"Holdout benchmark to use as test set (default: {DEFAULT_HOLDOUT})",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help=f"Output model path (default: {DEFAULT_MODEL_PREFIX}_<holdout>.txt, or _v1, _v2, ... if exists)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=SEED,
+        help=f"Random seed for internal train/val split (default: {SEED})",
+    )
+    parser.add_argument(
+        "--no-eval",
+        action="store_true",
+        help="Skip printing test set metrics",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Less training output",
+    )
+    args = parser.parse_args()
+
+    data_dir = args.data.resolve()
+    if not data_dir.is_dir():
+        print(f"Error: not a directory: {data_dir}")
+        sys.exit(1)
+
+    all_json_paths = collect_all_zeroshot_jsons(data_dir)
+    if not all_json_paths:
+        print(f"No .json files under {data_dir}")
+        sys.exit(1)
+
+    # Train on ALL data; test on holdout only
+    train_paths = all_json_paths
+    test_paths = get_holdout_paths(all_json_paths, args.holdout)
+    if not test_paths:
+        print(f"Error: no files found for holdout '{args.holdout}'.")
+        sys.exit(1)
+
+    print(f"JSON files: {len(all_json_paths)} total")
+    print(f"Train (all data): {len(train_paths)} files")
+    print(f"Test ({args.holdout}): {len(test_paths)} files")
+
+    train_queries, train_diagnostics = load_benchmarked_queries_from_zeroshot_with_diagnostics(
+        train_paths
+    )
+    if not train_queries:
+        print("Error: no train queries could be loaded.")
+        sys.exit(1)
+    print(f"Loaded {len(train_queries)} train benchmarks (plans)")
+
+    _append_training_diagnostics(
+        holdout=args.holdout,
+        diagnostics=train_diagnostics,
+        total_queries=len(train_queries),
+        mode="trainall_test_holdout",
+    )
+
+    model, bst = train_per_tuple_model(
+        train_queries, seed=args.seed, verbose=not args.quiet
+    )
+
+    default_model = Path(f"{DEFAULT_MODEL_PREFIX}_{args.holdout}.txt")
+    base_out = args.out if args.out is not None else default_model
+    out_path = next_available_model_path(_repo, base_out)
+    bst.save_model(str(out_path))
+    print(f"Saved model to {out_path}")
+
+    if not args.no_eval and test_paths:
+        test_queries = load_benchmarked_queries_from_zeroshot(test_paths)
+        if test_queries:
+            errors = []
+            for b in test_queries:
+                pred = model.estimate_runtime(b)
+                actual = b.get_total_runtime()
+                err = q_error(actual, pred)
+                errors.append(err)
+                if not args.quiet:
+                    print(f"{b.name}: pred={pred:.6f}s actual={actual:.6f}s q_error={err:.4f}")
+            summary = (
+                f"Test set (trainall, {args.holdout}, {len(test_queries)} queries): "
+                f"q-error avg={np.mean(errors):.4f} p50={np.median(errors):.4f} "
+                f"p90={np.percentile(errors, 90):.4f} min={min(errors):.4f} max={max(errors):.4f}"
+            )
+            print(summary)
+            holdout_path = _repo / "holdout.txt"
+            with open(holdout_path, "a", encoding="utf-8") as f:
+                f.write(summary + "\n")
+            print(f"Test results appended to {holdout_path}")
+        else:
+            print(f"No test queries could be loaded from {len(test_paths)} test files.")
+    elif not args.no_eval and not test_paths:
+        print(f"No test files for holdout '{args.holdout}'.")
+
+
+if __name__ == "__main__":
+    main()

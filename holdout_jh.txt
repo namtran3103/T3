@@ -69,3 +69,7 @@ holdout=ssb n=15000 min=1.0000 max=2089.1491 avg=2.2036 p50=1.7723 p75=2.3810 p9
 holdout=tournament n=15000 min=1.0000 max=326.2434 avg=3.2415 p50=1.5129 p75=2.9169 p90=6.3292
 holdout=tpc_h n=15000 min=1.0000 max=603.2708 avg=2.5029 p50=1.4748 p75=2.0891 p90=3.3092
 holdout=walmart n=15000 min=1.0000 max=1866.7405 avg=3.2389 p50=1.2708 p75=1.7763 p90=3.5003
+
+
+-----overfitting test here:
+holdout=imdb_full overfit=true n=50799 min=1.0000 max=77057.9663 avg=14.9462 p50=1.1731 p75=1.4270 p90=1.9453
