@@ -24,6 +24,7 @@ import lightgbm as lgb
 
 from src.metrics import q_error
 from src.model import PerTupleTreeModel
+from src.pg_features import PgFeatureMapper
 from src.query_plan import QueryPlan
 from src.zeroshot.training_zeroshot_tpch_holdout import load_benchmarked_queries_from_zeroshot
 from src.zeroshot.zeroshot_to_t3 import (
@@ -123,7 +124,7 @@ def main() -> None:
         sys.exit(1)
 
     booster = lgb.Booster(model_file=str(model_path))
-    model = PerTupleTreeModel(booster)
+    model = PerTupleTreeModel(booster, feature_mapper=PgFeatureMapper())
 
     lines: list[str] = []
     errors: list[float] = []

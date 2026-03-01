@@ -70,6 +70,7 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
         "restrictions": [],
         "residuals": [],
     }
+    out["pg"] = dict(p)
 
     # Scans: use DeepDB-aware children card for inputCardinality
     if op_name in ("Seq Scan", "Parallel Seq Scan", "Index Scan", "Index Only Scan"):

@@ -33,7 +33,8 @@ import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 
 from src.metrics import q_error
-from src.model import FeatureMapper, PerTupleTreeModel
+from src.model import PerTupleTreeModel
+from src.pg_features import PgFeatureMapper
 from src.optimizer import BenchmarkedQuery, QueryCategory
 from src.query_plan import QueryPlan
 from src.zeroshot.zeroshot_to_t3 import (
@@ -145,7 +146,7 @@ def load_benchmarked_queries_from_zeroshot(
                     plan = QueryPlan(converted, db, predicted_cardinalities=not use_actual_card)
                     plan.build_pipelines(converted["analyzePlanPipelines"])
                     name = f"{jf.stem}_{idx}" if len(plans) > 1 else jf.stem
-                    b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed)
+                    b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed, plan_dict=converted)
                     queries.append(b)
                     added_this_file += 1
                 except Exception as e:
@@ -208,7 +209,7 @@ def load_benchmarked_queries_from_zeroshot_with_diagnostics(
                     plan = QueryPlan(converted, db, predicted_cardinalities=not use_actual_card)
                     plan.build_pipelines(converted["analyzePlanPipelines"])
                     name = f"{jf.stem}_{idx}" if len(plans) > 1 else jf.stem
-                    b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed)
+                    b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed, plan_dict=converted)
                     queries.append(b)
                     added_this_file += 1
                 except Exception as e:
@@ -249,8 +250,8 @@ def train_per_tuple_model(
     verbose: bool = True,
     num_trees: int = 200,
 ) -> tuple[PerTupleTreeModel, lgb.Booster]:
-    """Train per-tuple tree model on pipeline feature vectors. num_trees: number of boosting rounds."""
-    feature_mapper = FeatureMapper()
+    """Train per-tuple tree model on pipeline feature vectors (PG features for zeroshot). num_trees: number of boosting rounds."""
+    feature_mapper = PgFeatureMapper()
     # Split by query so validation q-error is per-query (total runtime vs total predicted), same as test set.
     train_idx, val_idx = train_test_split(
         np.arange(len(queries)), test_size=0.2, random_state=seed
@@ -289,7 +290,7 @@ def train_per_tuple_model(
 
     param = {"objective": "mape", "verbose": 2 if verbose else -1}
     train_data = lgb.Dataset(
-        x_train, label=y_train, feature_name=FeatureMapper.get_names(), params=param
+        x_train, label=y_train, feature_name=PgFeatureMapper.get_names(), params=param
     )
     val_data = lgb.Dataset(x_val, label=y_val, reference=train_data, params=param)
     bst = lgb.Booster(param, train_data)
@@ -298,7 +299,7 @@ def train_per_tuple_model(
     def _val_avg_q_error():
         if not val_queries:
             return float("nan")
-        model = PerTupleTreeModel(bst)
+        model = PerTupleTreeModel(bst, feature_mapper=feature_mapper)
         errors = [
             q_error(q.get_total_runtime(), model.estimate_runtime(q))
             for q in val_queries
@@ -313,7 +314,7 @@ def train_per_tuple_model(
             print(i + 1, bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
     if verbose:
         print("Final:", bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
-    return PerTupleTreeModel(bst), bst
+    return PerTupleTreeModel(bst, feature_mapper=feature_mapper), bst
 
 
 def split_train_test_by_holdout(

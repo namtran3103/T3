@@ -25,7 +25,8 @@ import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 
 from src.metrics import q_error
-from src.model import FeatureMapper, PerTupleTreeModel
+from src.model import PerTupleTreeModel
+from src.pg_features import PgFeatureMapper
 from src.optimizer import BenchmarkedQuery, QueryCategory
 from src.query_plan import QueryPlan
 from src.zeroshot.zeroshot_to_t3 import (
@@ -61,7 +62,7 @@ def load_benchmarked_queries_from_zeroshot(
                     plan = QueryPlan(converted, db, predicted_cardinalities=not use_actual_card)
                     plan.build_pipelines(converted["analyzePlanPipelines"])
                     name = f"{jf.stem}_{idx}" if len(plans) > 1 else jf.stem
-                    b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed)
+                    b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed, plan_dict=converted)
                     queries.append(b)
                 except Exception:
                     continue
@@ -75,8 +76,8 @@ def train_per_tuple_model(
     seed: int = SEED,
     verbose: bool = True,
 ) -> tuple[PerTupleTreeModel, lgb.Booster]:
-    """Train per-tuple tree model on pipeline feature vectors (same as training_job_extended)."""
-    feature_mapper = FeatureMapper()
+    """Train per-tuple tree model on pipeline feature vectors using PG features (zeroshot)."""
+    feature_mapper = PgFeatureMapper()
     x_vectors = []
     y_values = []
     for query in queries:
@@ -97,7 +98,7 @@ def train_per_tuple_model(
     )
     param = {"objective": "mape", "verbose": 2 if verbose else -1}
     train_data = lgb.Dataset(
-        x_train, label=y_train, feature_name=FeatureMapper.get_names(), params=param
+        x_train, label=y_train, feature_name=PgFeatureMapper.get_names(), params=param
     )
     val_data = lgb.Dataset(x_val, label=y_val, reference=train_data, params=param)
     bst = lgb.Booster(param, train_data)
@@ -110,7 +111,7 @@ def train_per_tuple_model(
             print(i + 1, bst.eval_train(), bst.eval_valid())
     if verbose:
         print("Final:", bst.eval_train(), bst.eval_valid())
-    return PerTupleTreeModel(bst), bst
+    return PerTupleTreeModel(bst, feature_mapper=feature_mapper), bst
 
 
 def main() -> None:

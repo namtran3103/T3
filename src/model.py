@@ -75,10 +75,10 @@ class PerTupleTreeModel(Model):
     Predicts execution time of a single tuple in a pipeline
     """
 
-    def __init__(self, tree):
+    def __init__(self, tree, feature_mapper=None):
         super().__init__()
         self.tree: lgb.Booster = tree
-        self._feature_mapper = FeatureMapper()
+        self._feature_mapper = feature_mapper if feature_mapper is not None else FeatureMapper()
 
     def estimate_runtime(self, query: "BenchmarkedQuery") -> float:
         return sum(self.estimate_pipeline_runtime(query))
@@ -88,7 +88,11 @@ class PerTupleTreeModel(Model):
         query: "BenchmarkedQuery",
     ) -> list[float]:
         x = query.get_feature_matrix(self._feature_mapper)
-        scan_sizes = self._feature_mapper.get_pipeline_scan_sizes(query.query_plan)
+        from src.pg_features import PgFeatureMapper
+        if isinstance(self._feature_mapper, PgFeatureMapper) and query.plan_dict is not None:
+            scan_sizes = self._feature_mapper.get_pipeline_scan_sizes(query.plan_dict)
+        else:
+            scan_sizes = self._feature_mapper.get_pipeline_scan_sizes(query.query_plan)
         pred = self.predict(x, scan_sizes)
         return [max(0.0, float(e)) for e in pred]
 

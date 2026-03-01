@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 
-from typing import Tuple, Optional
+from typing import TYPE_CHECKING, Tuple, Optional
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from src.pg_features import PgFeatureMapper
 import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 
@@ -64,6 +67,7 @@ class BenchmarkedQuery:
     query_category: QueryCategory
     feature_matrix: Optional[np.ndarray] = None
     pipeline_runtimes: Optional[list[float]] = None
+    plan_dict: Optional[dict] = None  # T3 plan with "pg" on nodes; set when loading from zeroshot
 
     def get_total_runtime(self) -> float:
         return np.median(self.total_runtimes)
@@ -125,9 +129,19 @@ class BenchmarkedQuery:
             self.pipeline_runtimes = result
         return self.pipeline_runtimes
 
-    def get_per_tuple_pipeline_runtimes(self) -> list[float]:
+    def get_per_tuple_pipeline_runtimes(self, feature_mapper=None) -> list[float]:
+        """When feature_mapper is PgFeatureMapper and plan_dict is set, use PG pipeline scan sizes."""
+        runtimes = self.get_pipeline_runtimes()
+        if feature_mapper is not None and self.plan_dict is not None:
+            from src.pg_features import PgFeatureMapper
+            if isinstance(feature_mapper, PgFeatureMapper):
+                scan_sizes = feature_mapper.get_pipeline_scan_sizes(self.plan_dict)
+                return [
+                    (runtimes[i] / scan_sizes[i]) if i < len(scan_sizes) and scan_sizes[i] >= 1 else runtimes[i]
+                    for i in range(len(runtimes))
+                ]
         result = []
-        for pipeline, runtime in zip(self.query_plan.pipelines, self.get_pipeline_runtimes()):
+        for pipeline, runtime in zip(self.query_plan.pipelines, runtimes):
             if pipeline.get_pipeline_scan_cardinality() == 0:
                 result.append(runtime)
             else:
@@ -144,10 +158,13 @@ class BenchmarkedQuery:
 
     def get_per_tuple_pipeline_runtime_data(self, feature_mapper: FeatureMapper) -> list[tuple[np.ndarray, float]]:
         features = self.get_feature_matrix(feature_mapper)
-        targets = self.get_per_tuple_pipeline_runtimes()
+        targets = self.get_per_tuple_pipeline_runtimes(feature_mapper)
         return list((f, t) for f, t in zip(features, targets))
 
     def get_feature_matrix(self, feature_mapper: FeatureMapper) -> np.ndarray:
+        from src.pg_features import PgFeatureMapper
+        if isinstance(feature_mapper, PgFeatureMapper) and self.plan_dict is not None:
+            return feature_mapper.get_pipeline_estimation_matrix(self.plan_dict)
         if self.feature_matrix is None:
             self.feature_matrix = feature_mapper.get_pipeline_estimation_matrix(self.query_plan)
         return self.feature_matrix

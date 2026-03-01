@@ -13,6 +13,7 @@ Optional --jh FILE (with --jh-start-line / --jh-end-line) adds a third section f
 Optional --jh2 FILE (with --jh2-start-line / --jh2-end-line / --jh2-title) adds a fourth section from a second JH block.
 Optional --extra-start-line / --extra-end-line / --extra-title add a section from an extra line range in the main input file.
 Optional --extra2-start-line / --extra2-end-line / --extra2-title add a second extra section.
+Optional --extra3-start-line / --extra3-end-line / --extra3-title add a third extra section.
 """
 
 import re
@@ -192,6 +193,9 @@ def main() -> None:
     ap.add_argument("--extra2-start-line", type=int, default=None, help="Second extra block: first line in input file (1-based).")
     ap.add_argument("--extra2-end-line", type=int, default=None, help="Second extra block: last line in input file (1-based).")
     ap.add_argument("--extra2-title", type=str, default="updated nl feature", help="Title for the second extra block section.")
+    ap.add_argument("--extra3-start-line", type=int, default=None, help="Third extra block: first line in input file (1-based).")
+    ap.add_argument("--extra3-end-line", type=int, default=None, help="Third extra block: last line in input file (1-based).")
+    ap.add_argument("--extra3-title", type=str, default="full run new features implementation", help="Title for the third extra block section.")
     args = ap.parse_args()
     input_path = args.input if args.input is not None else HOLDOUT_FILE
     if not input_path.is_absolute():
@@ -239,6 +243,15 @@ def main() -> None:
         extra2_rows = parse_holdout_lines(extra2_lines)
         if extra2_rows:
             groups.append((args.extra2_title, extra2_rows))
+    if args.extra3_start_line is not None and args.extra3_end_line is not None:
+        all_input = input_path.read_text().strip().splitlines()
+        one_indexed = 1
+        start = args.extra3_start_line - one_indexed
+        end = args.extra3_end_line
+        extra3_lines = all_input[start:end]
+        extra3_rows = parse_holdout_lines(extra3_lines)
+        if extra3_rows:
+            groups.append((args.extra3_title, extra3_rows))
     if not groups:
         print("No groups parsed from", input_path, "or JH file")
         return

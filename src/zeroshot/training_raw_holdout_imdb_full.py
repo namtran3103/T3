@@ -106,7 +106,7 @@ def load_benchmarked_queries_from_raw(
                 plan = QueryPlan(converted, db, predicted_cardinalities=not use_actual_card)
                 plan.build_pipelines(converted["analyzePlanPipelines"])
                 name = f"{jf.stem}_{idx}"
-                b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed)
+                b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed, plan_dict=converted)
                 queries.append(b)
             except Exception:
                 continue
@@ -143,7 +143,7 @@ def load_benchmarked_queries_from_raw_for_eval(
                 plan = QueryPlan(converted, db, predicted_cardinalities=not use_actual_card)
                 plan.build_pipelines(converted["analyzePlanPipelines"])
                 name = f"{jf.stem}_{idx}"
-                b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed)
+                b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed, plan_dict=converted)
                 queries.append(b)
             except Exception:
                 continue
@@ -200,7 +200,7 @@ def load_benchmarked_queries_from_raw_with_diagnostics(
                     plan = QueryPlan(converted, db, predicted_cardinalities=not use_actual_card)
                     plan.build_pipelines(converted["analyzePlanPipelines"])
                     name = f"{jf.stem}_{idx}"
-                    b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed)
+                    b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed, plan_dict=converted)
                     queries.append(b)
                     added_this_file += 1
                 except Exception as e:

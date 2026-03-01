@@ -178,7 +178,7 @@ Q-error: min=1.0012 p50=1.4523 p90=3.2100 max=8.5000
 
 ## Zero-shot parsed plans (training only)
 
-Train T3 on **zero-shot** parsed plan JSONs (e.g. from `zero-shot-data/runs/parsed_plans`). Plans are converted to T3 format, split into pipelines (breakers: Hash, Materialize, Sort, Aggregate), and feature vectors are generated. No PostgreSQL EXPLAIN files or schema are required; a minimal in-memory DB is used.
+Train T3 on **zero-shot** parsed plan JSONs (e.g. from `zero-shot-data/runs/parsed_plans`). Plans are converted to T3 format, split into pipelines (breakers: Hash, Materialize, Sort, Aggregate), and **PG-native feature vectors** are generated via `PgFeatureMapper` (`src/pg_features.py`). No PostgreSQL EXPLAIN files or schema are required; a minimal in-memory DB is used. The converter attaches original `plan_parameters` as `pg` on each node so features are derived purely from parsed_plans (est_card, act_card, act_time, filter structure, etc.).
 
 **Script:** `src/zeroshot/training_zeroshot.py`
 

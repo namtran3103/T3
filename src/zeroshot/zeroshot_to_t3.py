@@ -162,6 +162,8 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
         "restrictions": [],
         "residuals": [],
     }
+    # Preserve PG plan_parameters for PgFeatureMapper (zeroshot-native features)
+    out["pg"] = dict(p)
 
     # Scans
     if op_name in ("Seq Scan", "Parallel Seq Scan", "Index Scan", "Index Only Scan"):
@@ -269,6 +271,14 @@ def _make_placeholder(next_id: list[int]) -> dict:
         "producedIUs": [{"estimatedSize": MIN_IU_BYTES}],
         "restrictions": [],
         "residuals": [],
+        "pg": {
+            "op_name": "Unknown",
+            "est_card": 0,
+            "act_card": 0,
+            "est_width": MIN_IU_BYTES,
+            "act_time": 0,
+            "act_startup_cost": 0,
+        },
     }
 
 
