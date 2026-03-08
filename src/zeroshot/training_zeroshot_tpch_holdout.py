@@ -306,14 +306,25 @@ def train_per_tuple_model(
         ]
         return float(np.mean(errors))
 
+    # Valid avg q-error during training (50, 100, 150, 200, ...) disabled; set LOG_VALID_QERROR_DURING_TRAINING=True to re-enable.
+    LOG_VALID_QERROR_DURING_TRAINING = False
     if verbose:
-        print("Initial:", bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
+        if LOG_VALID_QERROR_DURING_TRAINING:
+            print("Initial:", bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
+        else:
+            print("Initial:", bst.eval_train(), bst.eval_valid())
     for i in range(num_trees):
         bst.update()
         if verbose and (i + 1) % 50 == 0:
-            print(i + 1, bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
+            if LOG_VALID_QERROR_DURING_TRAINING:
+                print(i + 1, bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
+            else:
+                print(i + 1, bst.eval_train(), bst.eval_valid())
     if verbose:
-        print("Final:", bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
+        if LOG_VALID_QERROR_DURING_TRAINING:
+            print("Final:", bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
+        else:
+            print("Final:", bst.eval_train(), bst.eval_valid())
     return PerTupleTreeModel(bst, feature_mapper=feature_mapper), bst
 
 

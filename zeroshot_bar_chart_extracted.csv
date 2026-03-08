@@ -1,0 +1,21 @@
+Workload,"Scaled Optimizer Costs (Postgres)","Zero-Shot (DeepDB Est.)","Zero-Shot (Exact Cardinalities)"
+Accidents,8.62,1.401,1.071
+Airline,1.252,1.401,1.252
+Baseball,7.700,1.499,1.071
+Basketball,3.593,1.236,1.120
+Carcinogenesis,3.296,1.203,1.153
+Consumer,2.159,1.153,1.087
+Credit,3.345,1.104,1.021
+Employee,5.950,1.104,1.071
+Fhnk,4.071,1.219,1.005
+Financial,8.357,1.488,1.505
+Geneea,6.902,1.495,1.507
+Genome,7.158,1.501,1.515
+Hepatitis,6.405,1.484,1.509
+IMDB,6.47,1.503,1.527
+Movielens,6.924,0.36,1.505
+SSB,5.732,0.36,1.509
+Seznam,7.348,1.499,1.515
+TPC-H,6.083,1.499,1.517
+Tournament,7.187,1.507,1.515
+Walmart,7.311,1.499,1.515

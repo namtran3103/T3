@@ -103,14 +103,25 @@ def train_per_tuple_model(
     val_data = lgb.Dataset(x_val, label=y_val, reference=train_data, params=param)
     bst = lgb.Booster(param, train_data)
     bst.add_valid(val_data, "val_data")
+    # Valid metric during training (50, 100, 150, 200, ...) disabled; set LOG_VALID_DURING_TRAINING=True to re-enable.
+    LOG_VALID_DURING_TRAINING = False
     if verbose:
-        print("Initial:", bst.eval_train(), bst.eval_valid())
+        if LOG_VALID_DURING_TRAINING:
+            print("Initial:", bst.eval_train(), bst.eval_valid())
+        else:
+            print("Initial:", bst.eval_train())
     for i in range(200):
         bst.update()
         if verbose and (i + 1) % 50 == 0:
-            print(i + 1, bst.eval_train(), bst.eval_valid())
+            if LOG_VALID_DURING_TRAINING:
+                print(i + 1, bst.eval_train(), bst.eval_valid())
+            else:
+                print(i + 1, bst.eval_train())
     if verbose:
-        print("Final:", bst.eval_train(), bst.eval_valid())
+        if LOG_VALID_DURING_TRAINING:
+            print("Final:", bst.eval_train(), bst.eval_valid())
+        else:
+            print("Final:", bst.eval_train())
     return PerTupleTreeModel(bst, feature_mapper=feature_mapper), bst
 
 
