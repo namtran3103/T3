@@ -267,7 +267,7 @@ Test set (tpc_h, 15000 queries): q-error avg=1.6083 p50=1.2522 p90=1.9265 min=1.
 nah useless die ganze zeit war nur compare --revert:
 Test set (tpc_h, 15000 queries): q-error avg=1.6127 p50=1.2592 p90=1.9231 min=1.0000 max=307.4773
 
------full run with act cards, not like accounted for, rm startswith and between
+-----full run with act cards, not like accounted for, rm startswith and between, large vector
 Test set (accidents, 14999 queries): q-error avg=1.3138 p50=1.2363 p90=1.6437 min=1.0001 max=18.7423
 Test set (airline, 15000 queries): q-error avg=1.3096 p50=1.2011 p90=1.7075 min=1.0000 max=5.6214
 Test set (baseball, 15000 queries): q-error avg=1.3585 p50=1.2433 p90=1.7978 min=1.0000 max=14.8605

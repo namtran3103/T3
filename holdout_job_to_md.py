@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Build a markdown report from:
-1) holdout.txt lines 79-99: median over datasets (avg, p50, p90, min, max), p50 bar chart.
+1) holdout.txt sections: median over datasets (avg, p50, p90, min, max), p50 bar chart.
+   - lines 79-99: Holdout summary
+   - lines 182-202: Full run new features implementation
+   - lines 271-291: Full run with act cards, rm startswith and between, large vector
 2) job_zero_t3_results file: line plot of q-error for all queries, with vertical lines at avg, p50, p75, p90.
 
 Usage:
   python -m holdout_job_to_md
   python -m holdout_job_to_md --holdout holdout.txt --job job_zero_t3_results_20260218.txt --out report.md
+  python -m holdout_job_to_md --holdout-start 79 --holdout-end 99   # single section only
 """
 
 import re
@@ -29,6 +33,13 @@ ROOT = Path(__file__).resolve().parent
 HOLDOUT_FILE = ROOT / "holdout.txt"
 JOB_RESULTS_FILE = ROOT / "job_zero_t3_results_20260218.txt"
 OUTPUT_MD = ROOT / "holdout_job_report.md"
+
+# Multiple holdout sections: (start_line, end_line, title, bar_filename)
+HOLDOUT_SECTIONS = [
+    (79, 99, "Holdout summary (lines 79–99)", "holdout_job_p50_bars.png"),
+    (182, 202, "Full run new features implementation", "holdout_new_features_p50_bars.png"),
+    (271, 291, "Full run with act cards, rm startswith and between, large vector", "holdout_act_cards_p50_bars.png"),
+]
 
 # holdout: Test set (name, N queries): q-error avg=X p50=Y p90=Z min=M max=Max
 HOLDOUT_LINE = re.compile(
@@ -95,79 +106,90 @@ def main() -> None:
     ap.add_argument("--holdout", type=Path, default=HOLDOUT_FILE, help="holdout.txt")
     ap.add_argument("--job", type=Path, default=JOB_RESULTS_FILE, help="job_zero_t3_results file")
     ap.add_argument("--out", type=Path, default=OUTPUT_MD, help="Output markdown path")
-    ap.add_argument("--holdout-start", type=int, default=79, help="First holdout line (1-based)")
-    ap.add_argument("--holdout-end", type=int, default=99, help="Last holdout line (1-based)")
+    ap.add_argument("--plot-out", type=Path, default=None, help="Output path for q-error line plot (default: same dir as --out)")
+    ap.add_argument("--holdout-start", type=int, default=None, help="First holdout line (1-based); if set, only this single section is used")
+    ap.add_argument("--holdout-end", type=int, default=None, help="Last holdout line (1-based); used with --holdout-start")
     args = ap.parse_args()
 
     holdout_path = args.holdout if args.holdout.is_absolute() else ROOT / args.holdout
     job_path = args.job if args.job.is_absolute() else ROOT / args.job
     out_path = args.out if args.out.is_absolute() else ROOT / args.out
 
-    # ----- Holdout 79-99 -----
-    rows = parse_holdout_slice(holdout_path, args.holdout_start, args.holdout_end)
-    if not rows:
-        print("No holdout rows parsed from", holdout_path, "lines", args.holdout_start, "-", args.holdout_end)
-        return
-
-    n = len(rows)
-    med_avg = _median([r["avg"] for r in rows])
-    med_p50 = _median([r["p50"] for r in rows])
-    med_p90 = _median([r["p90"] for r in rows])
-    med_min = _median([r["min"] for r in rows])
-    med_max = _median([r["max"] for r in rows])
+    # Determine which sections to process
+    if args.holdout_start is not None and args.holdout_end is not None:
+        sections = [(args.holdout_start, args.holdout_end, "Holdout", "holdout_job_p50_bars.png")]
+    else:
+        sections = HOLDOUT_SECTIONS
 
     md_lines = [
         "# Holdout (non-enriched) + JOB Q-Error Report",
         "",
-        "## 1. Holdout summary (lines 79–99)",
-        "",
-        f"**Datasets:** {n}",
-        "",
-        "### Median over datasets",
-        "",
-        "| Metric | Value |",
-        "|--------|------:|",
-        f"| **avg** | {format_num(med_avg)} |",
-        f"| **p50** | {format_num(med_p50)} |",
-        f"| **p90** | {format_num(med_p90)} |",
-        f"| **min** | {format_num(med_min)} |",
-        f"| **max** | {format_num(med_max)} |",
-        "",
     ]
 
-    # p50 bar chart (holdout)
-    bar_path = out_path.parent / "holdout_job_p50_bars.png"
-    if _HAS_MATPLOTLIB:
-        p50_vals = [r["p50"] for r in rows]
-        names = [r["dataset"] for r in rows]
-        fig, ax = plt.subplots(figsize=(14, 5))
-        x = range(len(names))
-        ax.bar(x, p50_vals, color="#c0392b", width=0.5, edgecolor="none")
-        ax.set_xticks(x)
-        ax.set_xticklabels(names, rotation=45, ha="right")
-        ax.set_ylabel("p50")
-        ax.set_title("Q-error p50 by dataset (holdout 79–99)")
-        ax.set_ylim(1, None)
-        fig.tight_layout()
-        fig.savefig(bar_path, dpi=120, bbox_inches="tight")
-        plt.close(fig)
+    for sec_idx, (start, end, title, bar_name) in enumerate(sections, start=1):
+        rows = parse_holdout_slice(holdout_path, start, end)
+        if not rows:
+            print("No holdout rows parsed from", holdout_path, "lines", start, "-", end)
+            continue
+
+        n = len(rows)
+        med_avg = _median([r["avg"] for r in rows])
+        med_p50 = _median([r["p50"] for r in rows])
+        med_p90 = _median([r["p90"] for r in rows])
+        med_min = _median([r["min"] for r in rows])
+        med_max = _median([r["max"] for r in rows])
+
         md_lines.extend([
-            "### p50 by dataset",
+            f"## {sec_idx}. {title}",
             "",
-            f"![p50 bars]({bar_path.name})",
+            f"**Datasets:** {n}",
+            "",
+            "### Median over datasets",
+            "",
+            "| Metric | Value |",
+            "|--------|------:|",
+            f"| **avg** | {format_num(med_avg)} |",
+            f"| **p50** | {format_num(med_p50)} |",
+            f"| **p90** | {format_num(med_p90)} |",
+            f"| **min** | {format_num(med_min)} |",
+            f"| **max** | {format_num(med_max)} |",
             "",
         ])
-    else:
-        md_lines.append("*(Install matplotlib to generate p50 bar chart.)*")
-        md_lines.append("")
+
+        # p50 bar chart
+        bar_path = out_path.parent / bar_name
+        if _HAS_MATPLOTLIB:
+            p50_vals = [r["p50"] for r in rows]
+            names = [r["dataset"] for r in rows]
+            fig, ax = plt.subplots(figsize=(14, 5))
+            x = range(len(names))
+            ax.bar(x, p50_vals, color="#c0392b", width=0.5, edgecolor="none")
+            ax.set_xticks(x)
+            ax.set_xticklabels(names, rotation=45, ha="right")
+            ax.set_ylabel("p50")
+            ax.set_title(f"Q-error p50 by dataset ({title})")
+            ax.set_ylim(1, None)
+            fig.tight_layout()
+            fig.savefig(bar_path, dpi=120, bbox_inches="tight")
+            plt.close(fig)
+            md_lines.extend([
+                "### p50 by dataset",
+                "",
+                f"![p50 bars]({bar_path.name})",
+                "",
+            ])
+        else:
+            md_lines.append("*(Install matplotlib to generate p50 bar chart.)*")
+            md_lines.append("")
 
     # ----- JOB results: q-error line + vertical lines at avg, p50, p75, p90 -----
+    job_section_num = len(sections) + 1
     qerrors = parse_job_qerrors(job_path)
     if not qerrors:
         print("No q-errors parsed from", job_path)
     else:
         md_lines.extend([
-            "## 2. JOB full q-error (all queries)",
+            f"## {job_section_num}. JOB full q-error (all queries)",
             "",
             f"**Queries:** {len(qerrors)}",
             "",
@@ -201,7 +223,9 @@ def main() -> None:
             "",
         ])
 
-        line_path = out_path.parent / "holdout_job_qerror_line.png"
+        line_path = args.plot_out if args.plot_out is not None else out_path.parent / "holdout_job_qerror_line.png"
+        if not line_path.is_absolute():
+            line_path = ROOT / line_path
         if _HAS_MATPLOTLIB:
             sorted_q = sorted(qerrors)
             if _HAS_NUMPY:

@@ -12,7 +12,7 @@ echo "Generating holdout markdown reports..."
 python holdout_to_md.py
 echo "  -> holdout_results.md"
 
-python holdout_to_md.py --input holdout.txt --start-line 53 --end-line 99 --output holdout_results_new.md --jh holdout_jh.txt --jh-start-line 17 --jh-end-line 38 --jh2 holdout_jh.txt --jh2-start-line 51 --jh2-end-line 72 --jh2-title "all jh (fixed)" --extra-start-line 112 --extra-end-line 132 --extra-title "full run with fix" --extra2-start-line 143 --extra2-end-line 164 --extra2-title "updated nl feature" --extra3-start-line 182 --extra3-end-line 202 --extra3-title "full run new features implementation"
+python holdout_to_md.py --input holdout.txt --start-line 53 --end-line 99 --output holdout_results_new.md --jh holdout_jh.txt --jh-start-line 17 --jh-end-line 38 --jh2 holdout_jh.txt --jh2-start-line 51 --jh2-end-line 72 --jh2-title "all jh (fixed)" --extra-start-line 112 --extra-end-line 132 --extra-title "full run with fix" --extra2-start-line 143 --extra2-end-line 164 --extra2-title "updated nl feature" --extra3-start-line 182 --extra3-end-line 202 --extra3-title "full run new features implementation" --extra4-start-line 271 --extra4-end-line 291 --extra4-title "full run with act cards, rm startswith and between, large vector"
 echo "  -> holdout_results_new.md"
 
 python holdout_to_md.py --input holdout_augmented.txt
