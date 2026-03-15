@@ -157,13 +157,16 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
         "operatorId": nid,
         "analyzePlanId": nid,
         "cardinality": card,
-        "analyzePlanCardinality": _get_card(zs_node, True),
+        "analyzePlanCardinality": _get_card(zs_node, use_actual_card),
         "producedIUs": [{"estimatedSize": int(width)}],
         "restrictions": [],
         "residuals": [],
     }
     # Preserve PG plan_parameters for PgFeatureMapper (zeroshot-native features)
     out["pg"] = dict(p)
+    if not use_actual_card:
+        # Expose estimate in act_card slot so feature names stay pg_act_card_* with same vector layout
+        out["pg"]["act_card"] = p.get("est_card", p.get("act_card", 1))
 
     # Scans
     if op_name in ("Seq Scan", "Parallel Seq Scan", "Index Scan", "Index Only Scan"):

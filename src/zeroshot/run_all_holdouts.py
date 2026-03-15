@@ -64,6 +64,11 @@ def main() -> None:
         action="store_true",
         help="Only print commands, do not run",
     )
+    parser.add_argument(
+        "--use-estimated-card",
+        action="store_true",
+        help="Use estimated cardinalities (est_card) instead of actual; same feature names, default is actual.",
+    )
     args = parser.parse_args()
 
     data_dir = args.data.resolve()
@@ -96,6 +101,8 @@ def main() -> None:
                 model_name,
             ]
             print(f"[{i + 1}/{len(HOLDOUTS)}] holdout={holdout} -> {model_name}")
+        if args.use_estimated_card:
+            cmd.append("--use-estimated-card")
         if args.dry_run:
             print("  ", " ".join(cmd))
             continue

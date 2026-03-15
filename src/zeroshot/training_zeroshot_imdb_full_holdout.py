@@ -136,7 +136,14 @@ def main() -> None:
         action="store_true",
         help="Less training output",
     )
+    parser.add_argument(
+        "--use-estimated-card",
+        action="store_true",
+        help="Use estimated cardinalities (est_card) instead of actual; same feature names.",
+    )
     args = parser.parse_args()
+
+    use_actual_card = not args.use_estimated_card
 
     data_dir = args.data.resolve()
     if not data_dir.is_dir():
@@ -161,7 +168,7 @@ def main() -> None:
     print(f"Test ({HOLDOUT_IMDB_FULL}): {len(test_paths)} files")
 
     train_queries, train_diagnostics = load_benchmarked_queries_from_zeroshot_with_diagnostics(
-        train_paths
+        train_paths, use_actual_card=use_actual_card
     )
     if not train_queries:
         print("Error: no train queries could be loaded.")
@@ -185,7 +192,7 @@ def main() -> None:
     print(f"Saved model to {out_path}")
 
     if not args.no_eval and test_paths:
-        test_queries = load_benchmarked_queries_from_zeroshot(test_paths)
+        test_queries = load_benchmarked_queries_from_zeroshot(test_paths, use_actual_card=use_actual_card)
         if test_queries:
             errors = []
             for b in test_queries:
