@@ -7,6 +7,7 @@ and evaluation use this same data. Default holdout is imdb_full.
 Usage (from T3 project root):
   python -m src.zeroshot.training_zeroshot_overfit_holdout
   python -m src.zeroshot.training_zeroshot_overfit_holdout --holdout tpc_h
+  python -m src.zeroshot.training_zeroshot_overfit_holdout --num-trees 500
   python -m src.zeroshot.training_zeroshot_overfit_holdout --data /path/to/parsed_plans --holdout imdb_full
 """
 
@@ -30,6 +31,8 @@ from src.zeroshot.training_zeroshot_tpch_holdout import (
     next_available_model_path,
     SEED,
 )
+
+DEFAULT_NUM_TREES = 200
 from src.zeroshot.zeroshot_to_t3 import collect_all_zeroshot_jsons
 
 DIAGNOSTICS_FILE = "diagnostics_training.txt"
@@ -124,6 +127,13 @@ def main() -> None:
         help=f"Random seed for internal train/val split during training (default: {SEED})",
     )
     parser.add_argument(
+        "--num-trees",
+        type=int,
+        default=DEFAULT_NUM_TREES,
+        metavar="N",
+        help=f"LightGBM boosting rounds (per-tuple model) (default: {DEFAULT_NUM_TREES})",
+    )
+    parser.add_argument(
         "--no-eval",
         action="store_true",
         help="Skip printing test set metrics",
@@ -134,6 +144,9 @@ def main() -> None:
         help="Less training output",
     )
     args = parser.parse_args()
+    if args.num_trees < 1:
+        print("Error: --num-trees must be >= 1")
+        sys.exit(1)
 
     data_dir = args.data.resolve()
     if not data_dir.is_dir():
@@ -155,7 +168,10 @@ def main() -> None:
     train_paths = test_paths = holdout_paths
 
     print(f"JSON files: {len(all_json_paths)} total")
-    print(f"Overfit holdout ({args.holdout}): {len(holdout_paths)} files (train=test=same)")
+    print(
+        f"Overfit holdout ({args.holdout}): {len(holdout_paths)} files "
+        f"(train=test=same), num_trees={args.num_trees}"
+    )
 
     train_queries, train_diagnostics = load_benchmarked_queries_from_zeroshot_with_diagnostics(
         train_paths
@@ -173,7 +189,10 @@ def main() -> None:
     )
 
     model, bst = train_per_tuple_model(
-        train_queries, seed=args.seed, verbose=not args.quiet
+        train_queries,
+        seed=args.seed,
+        verbose=not args.quiet,
+        num_trees=args.num_trees,
     )
 
     default_model = Path(f"{DEFAULT_MODEL_PREFIX}_{args.holdout}.txt")

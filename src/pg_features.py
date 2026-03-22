@@ -4,6 +4,9 @@ Postgres/zeroshot-native feature set for parsed_plans.
 Builds feature vectors purely from plan_parameters (pg payload) attached to each node
 in the T3-converted plan. Used by zeroshot training and inference instead of the
 Umbra FeatureMapper when plan_dict is available.
+
+Observed execution timings (act_time, act_startup_cost, pipeline duration) are not
+included as features; ground-truth runtimes are still used only as training labels.
 """
 
 from __future__ import annotations
@@ -291,16 +294,23 @@ def _extract_operator_features(
 
 
 class PgFeature(AutoNumber):
-    """All features derivable from parsed_plans plan_parameters, aggregated per pipeline."""
+    """All features derivable from parsed_plans plan_parameters, aggregated per pipeline.
+
+    Does not include observed operator or pipeline timings (no act_time / startup / duration in X)
+    so runtime prediction does not use target leakage from EXPLAIN ANALYZE times as inputs.
+    """
 
     # Cardinality (all ops in pipeline; actual only, with estimate fallback when act not available)
     pg_act_card_sum = ()
     pg_act_card_max = ()
 
-    # Time (ms)
-    pg_act_time_sum = ()
-    pg_act_time_max = ()
-    pg_act_startup_sum = ()
+    # Planner cost (PostgreSQL est_cost / est_startup_cost; not actual runtime)
+    pg_est_cost_sum = ()
+    pg_est_cost_max = ()
+    pg_est_startup_sum = ()
+
+    # Parallelism (planner: workers planned per node)
+    pg_workers_planned_sum = ()
 
     # Width
     pg_est_width_avg = ()
@@ -328,8 +338,7 @@ class PgFeature(AutoNumber):
     pg_overall_selectivity_sum = ()  # sum over scans that have it; 0 if none
     pg_table_id_sum = ()  # sum of table ids (or 0) for scans; placeholder for table signal
 
-    # Pipeline-level (from analyzePlanPipelines and root)
-    pg_pipeline_act_time_ms = ()
+    # Pipeline-level (structure; no observed pipeline duration in features)
     pg_pipeline_num_ops = ()
     pg_pipeline_root_act_card = ()
 
@@ -383,7 +392,6 @@ def _count_filter_columns(fc: Any) -> dict[str, int]:
 def _extract_pipeline_pg_features(
     pipeline_op_ids: list[int],
     id_to_node: dict[int, dict],
-    pipeline_duration_ms: float,
     root_act_card: float,
 ) -> np.ndarray:
     """Build one fixed-length feature vector for a single pipeline."""
@@ -391,8 +399,8 @@ def _extract_pipeline_pg_features(
     vec = np.zeros(n_features, dtype=float)
 
     act_cards = []
-    act_times = []
-    act_startups = []
+    est_costs = []
+    est_startups = []
     widths = []
     num_scan = 0
     num_join = 0
@@ -409,6 +417,7 @@ def _extract_pipeline_pg_features(
     filter_in = 0
     overall_sel_sum = 0.0
     table_id_sum = 0
+    workers_planned_sum = 0.0
 
     for nid in pipeline_op_ids:
         node = id_to_node.get(nid)
@@ -418,13 +427,26 @@ def _extract_pipeline_pg_features(
         op_name = (pg.get("op_name") or "").strip()
 
         act_card = max(0, float(pg.get("act_card", pg.get("est_card", 0))))
-        act_time = max(0, float(pg.get("act_time", 0)))
-        act_startup = max(0, float(pg.get("act_startup_cost", 0)))
         width = max(0, float(pg.get("est_width", 8)))
+        try:
+            ec = float(pg.get("est_cost", 0) or 0)
+        except (TypeError, ValueError):
+            ec = 0.0
+        est_costs.append(max(0.0, ec))
+        try:
+            esu = float(pg.get("est_startup_cost", 0) or 0)
+        except (TypeError, ValueError):
+            esu = 0.0
+        est_startups.append(max(0.0, esu))
+
+        wp = pg.get("workers_planned")
+        if wp is not None:
+            try:
+                workers_planned_sum += max(0.0, float(wp))
+            except (TypeError, ValueError):
+                pass
 
         act_cards.append(act_card)
-        act_times.append(act_time)
-        act_startups.append(act_startup)
         widths.append(width)
 
         if op_name in PG_OP_SCAN:
@@ -466,9 +488,10 @@ def _extract_pipeline_pg_features(
     values = {
         PgFeature.pg_act_card_sum: sum(act_cards),
         PgFeature.pg_act_card_max: max(act_cards) if act_cards else 0,
-        PgFeature.pg_act_time_sum: sum(act_times),
-        PgFeature.pg_act_time_max: max(act_times) if act_times else 0,
-        PgFeature.pg_act_startup_sum: sum(act_startups),
+        PgFeature.pg_est_cost_sum: sum(est_costs),
+        PgFeature.pg_est_cost_max: max(est_costs) if est_costs else 0,
+        PgFeature.pg_est_startup_sum: sum(est_startups),
+        PgFeature.pg_workers_planned_sum: workers_planned_sum,
         PgFeature.pg_est_width_avg: float(np.mean(widths)) if widths else 0,
         PgFeature.pg_num_scan: num_scan,
         PgFeature.pg_num_join: num_join,
@@ -485,7 +508,6 @@ def _extract_pipeline_pg_features(
         PgFeature.pg_filter_in_count: filter_in,
         PgFeature.pg_overall_selectivity_sum: overall_sel_sum,
         PgFeature.pg_table_id_sum: table_id_sum,
-        PgFeature.pg_pipeline_act_time_ms: pipeline_duration_ms,
         PgFeature.pg_pipeline_num_ops: len(pipeline_op_ids),
         PgFeature.pg_pipeline_root_act_card: root_act_card,
     }
@@ -544,10 +566,7 @@ class PgFeatureMapper:
         rows = []
         for pl in pipelines_list:
             op_ids = pl.get("operators") or []
-            # duration in analyzePlanPipelines is in seconds (zeroshot_to_t3)
-            duration_sec = float(pl.get("duration", 0))
-            duration_ms = duration_sec * 1000.0
-            base_row = _extract_pipeline_pg_features(op_ids, id_to_node, duration_ms, root_act_card)
+            base_row = _extract_pipeline_pg_features(op_ids, id_to_node, root_act_card)
             op_row = _extract_operator_features(op_ids, id_to_node, root_node)
             rows.append(np.concatenate([base_row, op_row]))
         if not rows:

@@ -200,6 +200,9 @@ def main() -> None:
     ap.add_argument("--extra4-start-line", type=int, default=None, help="Fourth extra block: first line in input file (1-based).")
     ap.add_argument("--extra4-end-line", type=int, default=None, help="Fourth extra block: last line in input file (1-based).")
     ap.add_argument("--extra4-title", type=str, default="full run with act cards, rm startswith and between, large vector", help="Title for the fourth extra block section.")
+    ap.add_argument("--extra5-start-line", type=int, default=None, help="Fifth extra block: first line in input file (1-based).")
+    ap.add_argument("--extra5-end-line", type=int, default=None, help="Fifth extra block: last line in input file (1-based).")
+    ap.add_argument("--extra5-title", type=str, default="cardinality estimates testing", help="Title for the fifth extra block section.")
     args = ap.parse_args()
     input_path = args.input if args.input is not None else HOLDOUT_FILE
     if not input_path.is_absolute():
@@ -265,6 +268,15 @@ def main() -> None:
         extra4_rows = parse_holdout_lines(extra4_lines)
         if extra4_rows:
             groups.append((args.extra4_title, extra4_rows))
+    if args.extra5_start_line is not None and args.extra5_end_line is not None:
+        all_input = input_path.read_text().strip().splitlines()
+        one_indexed = 1
+        start = args.extra5_start_line - one_indexed
+        end = args.extra5_end_line
+        extra5_lines = all_input[start:end]
+        extra5_rows = parse_holdout_lines(extra5_lines)
+        if extra5_rows:
+            groups.append((args.extra5_title, extra5_rows))
     if not groups:
         print("No groups parsed from", input_path, "or JH file")
         return

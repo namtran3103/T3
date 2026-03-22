@@ -96,7 +96,14 @@ def main() -> None:
         action="store_true",
         help="Report per-plan load status (no model/eval); use to see why plans are skipped.",
     )
+    parser.add_argument(
+        "--use-estimated-card",
+        action="store_true",
+        help="Use estimated cardinalities (est_card) instead of actual; same feature names.",
+    )
     args = parser.parse_args()
+
+    use_actual_card = not args.use_estimated_card
 
     data_dir = args.data.resolve()
     if not data_dir.is_dir():
@@ -118,7 +125,9 @@ def main() -> None:
         print(f"Error: model file not found: {model_path}")
         sys.exit(1)
 
-    queries = load_benchmarked_queries_from_zeroshot(json_paths)
+    queries = load_benchmarked_queries_from_zeroshot(
+        json_paths, use_actual_card=use_actual_card
+    )
     if not queries:
         print("Error: no queries could be loaded.")
         sys.exit(1)

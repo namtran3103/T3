@@ -15,11 +15,14 @@ The T3 plan dict returned by `zeroshot_plan_to_t3` (or `augmented_zeroshot_to_t3
 One fixed-length feature vector per pipeline (same interface as `FeatureMapper.get_pipeline_estimation_matrix`). Features are aggregated from `node["pg"]` over the operators in each pipeline:
 
 - Cardinality sum/max (est_card, act_card)
-- Time sum/max (act_time, act_startup_cost ms)
+- Planner cost sum/max (`est_cost`) and startup cost sum (`est_startup_cost`) per pipeline
+- Sum of `workers_planned` over operators in the pipeline
 - Width avg (est_width)
 - Operator-type counts: scan, join, sort, agg, temp, select
 - Scan-specific: scan card sum, has_filter, filter counts (AND, OR, compare, like, in, between), overall_selectivity sum, table_id sum
-- Pipeline-level: duration ms, num ops, root act_card
+- Pipeline-level: num ops, root act_card (no observed operator or pipeline timings in X)
+
+Observed `act_time`, `act_startup_cost`, and pipeline `duration` are **not** used as features; they remain available in parsed plans only where needed for labels and pipeline bookkeeping.
 
 See `PgFeature` in `pg_features.py` for the full list.
 

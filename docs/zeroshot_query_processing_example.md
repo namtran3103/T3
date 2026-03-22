@@ -193,7 +193,6 @@ Aggregated over all operators in the pipeline:
 |---------|-------------|
 | `pg_act_card_sum` | Sum of act_card (or est_card) |
 | `pg_act_card_max` | Max act_card |
-| `pg_act_time_sum` | Sum of act_time (ms) |
 | `pg_est_width_avg` | Average est_width |
 | `pg_num_scan` | Count of scan operators |
 | `pg_num_join` | Count of join operators |
@@ -201,8 +200,9 @@ Aggregated over all operators in the pipeline:
 | `pg_scan_has_filter` | 1 if any scan has filter_columns |
 | `pg_filter_compare_count` | Count of compare expressions (from filter_columns tree) |
 | `pg_filter_and_count`, `pg_filter_or_count`, ... | Filter structure counts |
-| `pg_pipeline_act_time_ms` | Pipeline duration (from analyzePlanPipelines) |
 | `pg_pipeline_root_act_card` | Root node’s act_card |
+
+Timing fields (`act_time`, startup, pipeline duration) are not included in the feature vector.
 
 ### 4.4 Operator-Level Features (`_extract_operator_features`)
 

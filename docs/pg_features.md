@@ -22,14 +22,16 @@ Features are derived from the **`pg`** payload attached to each node in the T3-c
 | `op_name` | PG operator name | Operator-type counts (scan, join, sort, agg, temp, select) |
 | `est_card` | Planner estimated output rows | Cardinality sum/max; scan card sum |
 | `act_card` | Actual output rows | Cardinality sum/max; scan card sum; root act_card |
+| `est_cost` | Planner total cost for node | Sum/max per pipeline (`pg_est_cost_*`) |
+| `est_startup_cost` | Planner startup cost (ms) | Sum per pipeline (`pg_est_startup_sum`) |
+| `workers_planned` | Parallel workers planned for the node | Sum per pipeline (`pg_workers_planned_sum`) |
 | `est_width` | Estimated tuple width (bytes) | Width avg |
-| `act_time` | Actual time for node (ms) | Time sum/max |
-| `act_startup_cost` | Startup time (ms) | Time sum |
+| `act_time` / `act_startup_cost` | (present in parsed plans) | **Not** used as input features (only for labels / conversion bookkeeping) |
 | `table` | Table id (scans) | pg_table_id_sum |
 | `filter_columns` | Filter tree (operator, children) | Filter counts (AND, OR, compare, like, in, between); has_filter |
 | `overall_selectivity` | From enrichment (optional) | pg_overall_selectivity_sum |
 
-Pipeline structure comes from `analyzePlanPipelines` (operator ids per pipeline, duration in seconds). Root node’s `act_card` is used for `pg_pipeline_root_act_card`.
+Pipeline structure comes from `analyzePlanPipelines` (operator ids per pipeline). Pipeline `duration` is not used as a feature. Root node’s `act_card` is used for `pg_pipeline_root_act_card`.
 
 ---
 
@@ -46,13 +48,14 @@ All features are **aggregated per pipeline** (one vector per pipeline). The vect
 | `pg_act_card_sum` | Sum of `act_card` over all operators |
 | `pg_act_card_max` | Max of `act_card` over all operators |
 
-### 3.2 Time (ms)
+### 3.2 Planner cost (optimizer estimates)
 
 | Feature | Description |
 |---------|-------------|
-| `pg_act_time_sum` | Sum of `act_time` over all operators |
-| `pg_act_time_max` | Max of `act_time` over all operators |
-| `pg_act_startup_sum` | Sum of `act_startup_cost` over all operators |
+| `pg_est_cost_sum` | Sum of `est_cost` over all operators in the pipeline |
+| `pg_est_cost_max` | Max of `est_cost` over all operators |
+| `pg_est_startup_sum` | Sum of `est_startup_cost` over all operators |
+| `pg_workers_planned_sum` | Sum of `workers_planned` over all operators (missing treated as 0) |
 
 ### 3.3 Width
 
@@ -103,7 +106,6 @@ Counts are computed by recursively walking the filter tree (operator, children).
 
 | Feature | Description |
 |---------|-------------|
-| `pg_pipeline_act_time_ms` | Pipeline duration in ms (from `analyzePlanPipelines[].duration` in seconds × 1000) |
 | `pg_pipeline_num_ops` | Number of operator ids in this pipeline |
 | `pg_pipeline_root_act_card` | Root node’s `act_card` (same for all pipelines of the same plan) |
 
@@ -113,7 +115,7 @@ Counts are computed by recursively walking the filter tree (operator, children).
 
 - **Module:** `src/pg_features.py`
 - **Entry:** `PgFeatureMapper.get_pipeline_estimation_matrix(plan_dict)`
-  - Input: T3 plan dict with `plan` (root node tree) and `analyzePlanPipelines` (list of `{ operators: [analyzePlanIds], duration }`).
+  - Input: T3 plan dict with `plan` (root node tree) and `analyzePlanPipelines` (list of `{ operators: [analyzePlanIds], ... }`; `duration` is not used as a feature).
   - Builds a map `analyzePlanId → node` by walking `plan["plan"]`.
   - For each pipeline, collects the set of operator ids, looks up each node’s `pg` payload, and aggregates into one vector in `PgFeature` enum order.
 - **Filter counts:** `_count_filter_columns(filter_columns)` recursively counts AND, OR, compare, like, in, between (and treats NOT/STARTSWITH/IS NOT NULL as compare where applicable).
