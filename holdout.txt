@@ -403,3 +403,9 @@ Test set (ssb, 15000 queries): q-error avg=1.6168 p50=1.4226 p90=2.2091 min=1.00
 Test set (tournament, 15000 queries): q-error avg=3.0528 p50=1.5437 p90=4.1746 min=1.0001 max=748.6551
 Test set (tpc_h, 15000 queries): q-error avg=3.1688 p50=1.7926 p90=6.3112 min=1.0000 max=59.3012
 Test set (walmart, 15000 queries): q-error avg=2.2543 p50=1.5639 p90=3.9533 min=1.0000 max=23.6236
+
+
+---debugging/cleaning up
+Test set (tpc_h, 15000 queries): q-error avg=2.3743 p50=1.6797 p90=4.3435 min=1.0000 max=37.3933
+
+Test set (tpc_h, 15000 queries): q-error avg=2.2820 p50=1.7001 p90=3.8542 min=1.0001 max=47.4272

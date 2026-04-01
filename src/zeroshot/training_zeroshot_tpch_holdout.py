@@ -367,16 +367,6 @@ def main() -> None:
         help=f"Random seed for internal train/val split during training (default: {SEED})",
     )
     parser.add_argument(
-        "--no-eval",
-        action="store_true",
-        help="Skip printing test set metrics",
-    )
-    parser.add_argument(
-        "--quiet",
-        action="store_true",
-        help="Less training output",
-    )
-    parser.add_argument(
         "--use-estimated-card",
         action="store_true",
         help="Use estimated cardinalities (est_card) instead of actual; same feature names.",
@@ -421,15 +411,13 @@ def main() -> None:
         total_queries=len(train_queries),
     )
 
-    model, bst = train_per_tuple_model(
-        train_queries, seed=args.seed, verbose=not args.quiet
-    )
+    model, bst = train_per_tuple_model(train_queries, seed=args.seed)
     base_out = args.out if args.out.is_absolute() else _repo / args.out
     out_path = next_available_model_path(_repo, base_out)
     bst.save_model(str(out_path))
     print(f"Saved model to {out_path}")
 
-    if not args.no_eval and test_paths:
+    if test_paths:
         test_queries = load_benchmarked_queries_from_zeroshot(test_paths, use_actual_card=use_actual_card)
         if test_queries:
             errors = []
@@ -450,7 +438,7 @@ def main() -> None:
             print(f"Test results appended to {holdout_path}")
         else:
             print(f"No test queries could be loaded from {len(test_paths)} test files.")
-    elif not args.no_eval and not test_paths:
+    else:
         print(f"No test files (no path contains '{args.holdout}').")
 
 

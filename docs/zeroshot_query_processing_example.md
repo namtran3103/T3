@@ -84,9 +84,12 @@ t3_plan = zeroshot_plan_to_t3(zs_plan, use_actual_card=True)
 Or from a file:
 
 ```python
-from src.zeroshot.zeroshot_to_t3 import convert_file_to_t3
+from src.zeroshot.zeroshot_to_t3 import load_zeroshot_json, zeroshot_plan_to_t3
 
-t3_plans = convert_file_to_t3("path/to/parsed_plans/imdb/job-light_c8220.json")
+data = load_zeroshot_json("path/to/parsed_plans/imdb/job-light_c8220.json")
+t3_plans = [
+    zeroshot_plan_to_t3(p, use_actual_card=True) for p in data.get("parsed_plans", [])
+]
 ```
 
 ### 2.2 Node Conversion (`_convert_node`)
