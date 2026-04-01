@@ -40,6 +40,91 @@ This creates a clean scientific narrative: first show transfer feasibility, then
 
 ---
 
+## Full Thesis Structure (Recommended)
+
+This chapter plan fits your topic very well and is scientifically consistent with the research question.
+
+## 1. Introduction
+
+- Motivation: fast and accurate runtime prediction for query optimization/scheduling.
+- Problem statement: transfer T3 from Umbra to PostgreSQL parsed plans.
+- Research question and contributions.
+
+## 2. Theoretical Background
+
+Use your intended sections, with one adjustment on scope:
+
+- **Decision Trees:** regression trees, gradient boosting, why trees are suitable for low-latency inference.
+- **PostgreSQL:** physical plans, operators, cardinalities/costs, relevant `EXPLAIN`/parsed plan signals.
+- **Umbra:** operator/pipeline model and why T3 was designed in that context.
+- **T3 (from `t3.pdf`):** pipeline-based representation, tuple-centric target transformation, compiled decision trees.
+- **Related Work:** zero-shot cost models (`3551793.3551799.pdf`) and other learned runtime prediction work.
+
+Important placement note:
+- Introduce **zero-shot parsed plans and runtime filtering** in your **Data/Method** chapter (not only in Related Work), because this is part of your experimental pipeline and must be reproducible.
+
+## 3. Methodology and Implementation
+
+- Data source and preprocessing (`parsed_plans`, filtering rules, split logic).
+- System A (direct T3 transfer baseline: Umbra-style features).
+- System B (adapted T3 with PostgreSQL-native features).
+- Controlled training/evaluation protocol.
+
+## 4. Experimental Setup
+
+- Hardware/software environment.
+- Metrics (q-error p50/p90/avg/max).
+- Holdout setup and cardinality variants (actual vs estimated, where applicable).
+
+## 5. Results
+
+- Baseline transfer results.
+- PG-native feature adaptation results.
+- Ablations/robustness analyses.
+
+## 6. Discussion
+
+- Interpretation of where transfer works/fails.
+- Comparison to prior work (T3 paper, Zero-Shot, JOBComplex implementation where comparable).
+- Threats to validity and limits of comparability.
+
+## 7. Conclusion and Future Work
+
+- Directly answer the RQ.
+- Summarize methodological and empirical contributions.
+
+---
+
+## Comparison Strategy to Prior Work
+
+Your plan to compare against `JOBComplex.pdf` and Zero-Shot holdout results is good, with one scientific caution:
+
+- **Within-work first:** Primary claim should be baseline vs adapted model under identical conditions in your codebase.
+- **Cross-paper second:** External comparisons should be clearly labeled as **indicative**, because data generation, execution engines, and evaluation protocols may differ.
+- **JOB-full comparison:** Good fit for discussion, especially since your results include JOB-full evaluation; state differences in setup explicitly.
+- **Holdout comparison with Zero-Shot:** Reasonable and valuable, especially if using the same parsed-plan source and similar split logic.
+
+## Where to Mention `JOBComplex.pdf` (Concrete Placement)
+
+- **Theoretical Background -> T3 section (short mention):**
+  - 2-4 sentences that position `JOBComplex.pdf` as a PostgreSQL-oriented T3-related implementation/evaluation on JOB.
+  - Goal: context and motivation, not detailed numerical comparison.
+
+- **Related Work section (main literature positioning):**
+  - Summarize their setup, task, and key metric(s).
+  - Clearly distinguish overlap and differences to your work (data source, feature encoding, splits, evaluation scope).
+  - This is the main place where the reader learns why comparison is useful but limited.
+
+- **Results/Discussion -> External Comparison subsection (quantitative interpretation):**
+  - Compare your JOB-full results to their reported values.
+  - Explicitly add a "comparability caveat" paragraph (different protocols/engines/features/hardware).
+  - Use wording like "indicative comparison" rather than "direct benchmark winner."
+
+- **Methodology (one-line justification only):**
+  - Briefly state that JOB-full is included partly to enable discussion against prior JOB-focused T3-related work.
+
+---
+
 ## Methodology Structure (Chapter-Level)
 
 ## 1. Problem Statement and Scientific Scope
@@ -58,7 +143,7 @@ This creates a clean scientific narrative: first show transfer feasibility, then
 
 - Describe dataset source: parsed plans under `zero-shot-data/runs/parsed_plans`.
 - Define analysis unit: each element in `parsed_plans`.
-- Define inclusion/exclusion from code (e.g., runtime availability checks, conversion failures).
+- Define inclusion/exclusion from code (e.g., runtime availability checks, conversion failures, skipped plans).
 - Define split strategy (benchmark holdout in `training_zeroshot_tpch_holdout.py` and related scripts).
 
 ## 4. System A: Direct T3 Transfer Baseline
@@ -82,9 +167,10 @@ This creates a clean scientific narrative: first show transfer feasibility, then
 ## 6. Learning Setup and Controlled Comparison Protocol
 
 - Use identical model family and training process for both systems (LightGBM-based tuple-centric pipeline model).
-- Keep all conditions fixed except feature representation.
+- For the primary system comparison, keep all conditions fixed except feature representation.
 - Report exact training settings and seeds to ensure reproducibility.
-- Include both actual-cardinality and estimated-cardinality variants where implemented.
+- Primary comparison protocol: compare both systems on actual-cardinality runs only.
+- Cardinality robustness is treated as a separate ablation (estimated-cardinality runs where implemented, currently on the PG-native system).
 
 ## 7. Evaluation Metrics and Analyses
 
@@ -93,7 +179,7 @@ This creates a clean scientific narrative: first show transfer feasibility, then
 - Transfer evaluation logic:
   - Step 1: show baseline transfer works (non-trivial predictive quality).
   - Step 2: show dedicated PG features improve predictive quality.
-  - Step 3: analyze robustness under estimated cardinalities.
+  - Step 3: separately analyze cardinality robustness on the system variant where estimated-cardinality experiments are available.
 
 ## 8. Threats to Validity
 
@@ -109,6 +195,10 @@ This creates a clean scientific narrative: first show transfer feasibility, then
   - Adapted PG-feature performance and delta to baseline.
 - Interpret improvements in terms of representation quality, not only raw numbers.
 - Relate findings back to T3 transferability claims.
+- Add external comparison subsection:
+  - comparison to T3-for-Postgres/JOBComplex results,
+  - comparison to Zero-Shot holdout literature values,
+  - explicit statement of comparability limits.
 
 ## 10. Conclusion and Future Work
 
