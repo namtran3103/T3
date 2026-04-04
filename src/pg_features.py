@@ -334,9 +334,8 @@ class PgFeature(AutoNumber):
     pg_filter_like_count = ()
     pg_filter_in_count = ()
 
-    # Enrichment (when present)
-    pg_overall_selectivity_sum = ()  # sum over scans that have it; 0 if none
-    pg_table_id_sum = ()  # sum of table ids (or 0) for scans; placeholder for table signal
+    # Sum of parser `table` ids on scans in the pipeline (plan_parameters)
+    pg_table_id_sum = ()
 
     # Pipeline-level (structure; no observed pipeline duration in features)
     pg_pipeline_num_ops = ()
@@ -415,7 +414,6 @@ def _extract_pipeline_pg_features(
     filter_compare = 0
     filter_like = 0
     filter_in = 0
-    overall_sel_sum = 0.0
     table_id_sum = 0
     workers_planned_sum = 0.0
 
@@ -461,9 +459,6 @@ def _extract_pipeline_pg_features(
             filter_compare += counts.get("compare", 0)
             filter_like += counts.get("like", 0)
             filter_in += counts.get("in", 0)
-            sel = pg.get("overall_selectivity")
-            if sel is not None and 0 <= float(sel) <= 1:
-                overall_sel_sum += float(sel)
             tid = pg.get("table")
             if tid is not None:
                 try:
@@ -506,7 +501,6 @@ def _extract_pipeline_pg_features(
         PgFeature.pg_filter_compare_count: filter_compare,
         PgFeature.pg_filter_like_count: filter_like,
         PgFeature.pg_filter_in_count: filter_in,
-        PgFeature.pg_overall_selectivity_sum: overall_sel_sum,
         PgFeature.pg_table_id_sum: table_id_sum,
         PgFeature.pg_pipeline_num_ops: len(pipeline_op_ids),
         PgFeature.pg_pipeline_root_act_card: root_act_card,

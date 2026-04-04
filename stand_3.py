@@ -43,6 +43,13 @@ def median_metrics(block, datasets):
     return medians
 
 
+def mean_metrics(block, datasets):
+    means = {}
+    for metric in METRICS:
+        means[metric] = float(np.mean([block[d][metric] for d in datasets]))
+    return means
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Plot grouped p50 bars for three holdout configurations."
@@ -108,14 +115,14 @@ def main():
     ax.grid(axis="y", alpha=0.25, linestyle="--")
     ax.legend()
 
-    med_t3 = median_metrics(t3, datasets)
-    med_actual = median_metrics(updated_actual_cards, datasets)
-    med_est = median_metrics(updated_est_cards, datasets)
+    mean_t3 = mean_metrics(t3, datasets)
+    mean_actual = mean_metrics(updated_actual_cards, datasets)
+    mean_est = mean_metrics(updated_est_cards, datasets)
 
     table_rows = [
-        [f"{med_t3[m]:.4f}" for m in METRICS],
-        [f"{med_actual[m]:.4f}" for m in METRICS],
-        [f"{med_est[m]:.4f}" for m in METRICS],
+        [f"{mean_t3[m]:.4f}" for m in METRICS],
+        [f"{mean_actual[m]:.4f}" for m in METRICS],
+        [f"{mean_est[m]:.4f}" for m in METRICS],
     ]
     row_labels = [
         "force umbra mapping",

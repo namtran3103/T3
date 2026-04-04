@@ -49,6 +49,7 @@ This chapter plan fits your topic very well and is scientifically consistent wit
 - Motivation: fast and accurate runtime prediction for query optimization/scheduling.
 - Problem statement: transfer T3 from Umbra to PostgreSQL parsed plans.
 - Research question and contributions.
+- Scope and delimitations: offline learned runtime prediction only; no concurrent workload modeling; no optimizer-integration claims unless explicitly evaluated.
 
 ## 2. Theoretical Background
 
@@ -127,11 +128,10 @@ Your plan to compare against `JOBComplex.pdf` and Zero-Shot holdout results is g
 
 ## Methodology Structure (Chapter-Level)
 
-## 1. Problem Statement and Scientific Scope
+## 1. Problem Statement and Prediction Target
 
 - Define the transfer objective from T3 (Umbra context) to PostgreSQL parsed plans.
 - Define prediction target: query runtime as sum of predicted pipeline runtimes from per-tuple predictions.
-- Define system boundary: offline learning-based prediction, no concurrent workload modeling, no optimizer integration claims unless tested.
 
 ## 2. Source Model and Transfer Design
 

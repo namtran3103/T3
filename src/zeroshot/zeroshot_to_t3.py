@@ -72,14 +72,12 @@ def _filter_operator_to_expression(operator: str) -> tuple[str, Optional[str]]:
     return "compare", "="
 
 
-def _convert_filter_columns_to_tree(
-    filter_cols: dict, overall_selectivity: Optional[float] = None
-) -> Optional[dict]:
+def _convert_filter_columns_to_tree(filter_cols: dict) -> Optional[dict]:
     """
     Convert filter_columns tree (zero-shot: operator, children) to query_plan tree format
     (expression, input). Does not flatten; returns a single nested dict.
-    When overall_selectivity is provided (e.g. from enrichment), set it only on the root
-    so the core can distribute it via _featurize_expression. Otherwise the core uses defaults.
+    Selectivity for features comes from QueryPlan._get_expression_selectivity defaults
+    (no estimatedSelectivity on nodes).
     """
     if not isinstance(filter_cols, dict):
         return None
@@ -93,50 +91,39 @@ def _convert_filter_columns_to_tree(
             return None
         input_list = []
         for child in children:
-            sub = _convert_filter_columns_to_tree(child, None)
+            sub = _convert_filter_columns_to_tree(child)
             if sub is not None:
                 input_list.append(sub)
         if not input_list:
             return None
-        node: dict = {"expression": "and", "input": input_list}
-        if overall_selectivity is not None and 0 < overall_selectivity <= 1.0:
-            node["estimatedSelectivity"] = overall_selectivity
-        return node
+        return {"expression": "and", "input": input_list}
 
     if operator == "OR":
         if not children:
             return None
         input_list = []
         for child in children:
-            sub = _convert_filter_columns_to_tree(child, None)
+            sub = _convert_filter_columns_to_tree(child)
             if sub is not None:
                 input_list.append(sub)
         if not input_list:
             return None
-        node = {"expression": "or", "input": input_list}
-        if overall_selectivity is not None and 0 < overall_selectivity <= 1.0:
-            node["estimatedSelectivity"] = overall_selectivity
-        return node
+        return {"expression": "or", "input": input_list}
 
     # NOT: single child
     if operator == "NOT":
         if not children:
             return None
-        sub = _convert_filter_columns_to_tree(children[0], None)
+        sub = _convert_filter_columns_to_tree(children[0])
         if sub is None:
             return None
-        node = {"expression": "not", "input": sub}
-        if overall_selectivity is not None and 0 < overall_selectivity <= 1.0:
-            node["estimatedSelectivity"] = overall_selectivity
-        return node
+        return {"expression": "not", "input": sub}
 
     # Leaf: compare, like, in, between, etc.
     expr_type, direction = _filter_operator_to_expression(operator)
     node = {"expression": expr_type}
     if direction is not None:
         node["direction"] = direction
-    if overall_selectivity is not None and 0 < overall_selectivity <= 1.0:
-        node["estimatedSelectivity"] = overall_selectivity
     return node
 
 
@@ -174,21 +161,14 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
         out["tablename"] = "unknown"
         # Always use 1 for scan input cardinality (historical zeroshot behaviour; filter method is kept).
         out["inputCardinality"] = 1
-        # Convert filter_columns to a single tree restriction. Set overall_selectivity at root
-        # only when we have it from enrichment (raw data); otherwise the core uses defaults.
         fc = p.get("filter_columns")
-        overall_selectivity = p.get("overall_selectivity")
         if isinstance(fc, dict):
-            tree = _convert_filter_columns_to_tree(fc, overall_selectivity)
+            tree = _convert_filter_columns_to_tree(fc)
             if tree is not None:
                 out["restrictions"].append(tree)
         elif fc is not None:
             # Legacy: simple filter_columns (e.g. just column name)
-            node = {"expression": "compare"}
-            if overall_selectivity is not None and 0 < overall_selectivity <= 1.0:
-                node["estimatedSelectivity"] = overall_selectivity
-            node["direction"] = "="
-            out["restrictions"].append(node)
+            out["restrictions"].append({"expression": "compare", "direction": "="})
 
         return out
 
