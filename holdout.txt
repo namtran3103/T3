@@ -418,3 +418,28 @@ Test set (tpc_h, 15000 queries): q-error avg=2.2820 p50=1.7001 p90=3.8542 min=1.
 Test set (tpc_h, 15000 queries): q-error avg=2.2820 p50=1.7001 p90=3.8542 min=1.0001 max=47.4272
 Test set (tpc_h, 15000 queries): q-error avg=3.5466 p50=1.8349 p90=5.2733 min=1.0001 max=90.6484
 Test set (tpc_h, 15000 queries): q-error avg=3.5466 p50=1.8349 p90=5.2733 min=1.0001 max=90.6484
+
+--re-run after training cleanup to verify:
+
+
+Test set (accidents, 14999 queries): q-error avg=2.1940 p50=1.8052 p90=3.5714 min=1.0002 max=29.3352
+Test set (airline, 15000 queries): q-error avg=2.2016 p50=1.8039 p90=3.4363 min=1.0000 max=84.2699
+Test set (baseball, 15000 queries): q-error avg=2.1047 p50=1.6769 p90=3.5327 min=1.0001 max=75.0919
+Test set (basketball, 14998 queries): q-error avg=2.4805 p50=1.6038 p90=3.8293 min=1.0001 max=111.6812
+Test set (carcinogenesis, 14934 queries): q-error avg=1.7696 p50=1.4624 p90=2.7215 min=1.0000 max=53.1699
+Test set (consumer, 15000 queries): q-error avg=1.9657 p50=1.6751 p90=3.0859 min=1.0001 max=15.8817
+Test set (credit, 14997 queries): q-error avg=1.6106 p50=1.4302 p90=2.2738 min=1.0000 max=27.4073
+Test set (employee, 14975 queries): q-error avg=1.6881 p50=1.4765 p90=2.6106 min=1.0001 max=9.4665
+Test set (fhnk, 14997 queries): q-error avg=1.9137 p50=1.4958 p90=3.1624 min=1.0000 max=75.7303
+Test set (financial, 14221 queries): q-error avg=1.5649 p50=1.3616 p90=2.1819 min=1.0001 max=17.1334
+Test set (geneea, 15000 queries): q-error avg=2.5411 p50=1.8395 p90=4.8495 min=1.0001 max=66.0706
+Test set (genome, 14995 queries): q-error avg=1.7745 p50=1.5555 p90=2.6391 min=1.0001 max=17.1659
+Test set (hepatitis, 14989 queries): q-error avg=2.8190 p50=1.4907 p90=2.8641 min=1.0000 max=225.3174
+Test set (imdb, 31426 queries): q-error avg=2.0922 p50=1.5530 p90=3.7113 min=1.0000 max=33.0569
+Test set (imdb_full, 50799 queries): q-error avg=2.1416 p50=1.5993 p90=3.8659 min=1.0000 max=38.4887
+Test set (movielens, 14999 queries): q-error avg=1.7605 p50=1.5430 p90=2.6156 min=1.0000 max=81.3162
+Test set (seznam, 14994 queries): q-error avg=1.5711 p50=1.4357 p90=2.2038 min=1.0001 max=14.1392
+Test set (ssb, 15000 queries): q-error avg=1.7176 p50=1.4630 p90=2.5592 min=1.0001 max=89.7366
+Test set (tournament, 15000 queries): q-error avg=1.9718 p50=1.4271 p90=2.5665 min=1.0000 max=139.2173
+Test set (tpc_h, 15000 queries): q-error avg=2.2820 p50=1.7001 p90=3.8542 min=1.0001 max=47.4272
+Test set (walmart, 15000 queries): q-error avg=2.3401 p50=1.5748 p90=4.2106 min=1.0001 max=25.6258
