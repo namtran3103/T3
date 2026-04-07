@@ -415,3 +415,6 @@ Test set (tpc_h, 15000 queries): q-error avg=2.2820 p50=1.7001 p90=3.8542 min=1.
 Test set (tpc_h, 15000 queries): q-error avg=2.3743 p50=1.6797 p90=4.3435 min=1.0000 max=37.3933
 Test set (tpc_h, 15000 queries): q-error avg=2.2820 p50=1.7001 p90=3.8542 min=1.0001 max=47.4272
 Test set (tpc_h, 15000 queries): q-error avg=2.2820 p50=1.7001 p90=3.8542 min=1.0001 max=47.4272
+Test set (tpc_h, 15000 queries): q-error avg=2.2820 p50=1.7001 p90=3.8542 min=1.0001 max=47.4272
+Test set (tpc_h, 15000 queries): q-error avg=3.5466 p50=1.8349 p90=5.2733 min=1.0001 max=90.6484
+Test set (tpc_h, 15000 queries): q-error avg=3.5466 p50=1.8349 p90=5.2733 min=1.0001 max=90.6484

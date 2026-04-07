@@ -159,7 +159,9 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
     if op_name in ("Seq Scan", "Parallel Seq Scan", "Index Scan", "Index Only Scan"):
         out["operator"] = "tablescan"
         out["tablename"] = "unknown"
-        # Always use 1 for scan input cardinality (historical zeroshot behaviour; filter method is kept).
+        # Always use 1 for scan input cardinality (parsed_plans do not contain input cardinality due to PG iterator-based approach).
+        # Model will just adapt to this in training and use other features to predict the runtime.
+        # Future work could include adding the input cardinality to the parsed plans.
         out["inputCardinality"] = 1
         fc = p.get("filter_columns")
         if isinstance(fc, dict):

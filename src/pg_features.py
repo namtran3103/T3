@@ -5,6 +5,8 @@ Builds feature vectors purely from plan_parameters (pg payload) attached to each
 in the T3-converted plan. Used by zeroshot training and inference instead of the
 Umbra FeatureMapper when plan_dict is available.
 
+If est_cards are used, vector still use act_cards naming but the values are the est_cards.
+
 Observed execution timings (act_time, act_startup_cost, pipeline duration) are not
 included as features; ground-truth runtimes are still used only as training labels.
 """
@@ -572,6 +574,11 @@ class PgFeatureMapper:
         """
         Pipeline scan size for per-tuple target: sum of act_card of scan operators
         in each pipeline. Used when converting per-tuple prediction back to runtime.
+
+        Umbra logic of simply using input/output cardinality can't be used as 
+        parsed_plans do not contain input cardinality due to PG iterator-based approach.
+        Non-scan pipelines will have a scan size of 1, this approach produced lowest q-errors in experiments, 
+        despite tuple logic being softened.
         """
         root_node = plan.get("plan")
         pipelines_list = plan.get("analyzePlanPipelines") or []

@@ -6,8 +6,7 @@ Train on all JSONs except those under the holdout directory; use the holdout as 
 split changes (by path: paths containing the holdout name are test).
 
 If the output file already exists, saves to _v1, _v2, ... (next free number). Appends
-training diagnostics to diagnostics_training.txt and test summary to holdout.txt (append,
-no overwrite).
+test summary to holdout.txt (append, no overwrite).
 
 Usage (from T3 project root):
   python -m src.zeroshot.training_zeroshot_tpch_holdout
@@ -19,7 +18,6 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -48,7 +46,6 @@ SEED = 42
 HOLDOUT_BENCHMARK = "tpc_h"
 DEFAULT_DATA_DIR = "/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans"
 DEFAULT_MODEL_PATH = "model_zero_tpch_holdout.txt"
-DIAGNOSTICS_FILE = "diagnostics_training.txt"
 
 
 def next_available_model_path(repo: Path, base_path: Path) -> Path:
@@ -64,56 +61,6 @@ def next_available_model_path(repo: Path, base_path: Path) -> Path:
         if not candidate.exists():
             return candidate
         n += 1
-
-
-def _append_training_diagnostics(
-    holdout: str,
-    diagnostics: list[dict],
-    total_queries: int,
-) -> None:
-    """Append training diagnostics to diagnostics_training.txt with timestamp and holdout."""
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    out_path = _repo / DIAGNOSTICS_FILE
-    lines = [
-        "",
-        "---",
-        f"timestamp={ts}",
-        f"holdout={holdout}",
-        f"train_files={len(diagnostics)}",
-        f"total_queries_used={total_queries}",
-        "",
-    ]
-    total_plans = 0
-    total_added = 0
-    total_skip_no_runtime = 0
-    total_skip_exception = 0
-    files_failed = 0
-    for d in diagnostics:
-        total_plans += d["plans_total"]
-        total_added += d["added"]
-        total_skip_no_runtime += d["skip_no_runtime"]
-        total_skip_exception += d["skip_exception"]
-        if d.get("file_error"):
-            files_failed += 1
-        status = "ok" if d["added"] == d["plans_total"] and not d.get("file_error") else "skipped_some"
-        line = (
-            f"  {d['path']}: plans={d['plans_total']} added={d['added']} "
-            f"skip_no_runtime={d['skip_no_runtime']} skip_exception={d['skip_exception']}"
-        )
-        if d.get("file_error"):
-            line += f" file_error={d['file_error']!r}"
-        line += f" [{status}]"
-        lines.append(line)
-    lines.extend([
-        "",
-        f"total_plans={total_plans} total_added={total_added} "
-        f"total_skip_no_runtime={total_skip_no_runtime} total_skip_exception={total_skip_exception} "
-        f"files_failed={files_failed}",
-        "",
-    ])
-    with open(out_path, "a", encoding="utf-8") as f:
-        f.write("\n".join(lines))
-    print(f"Training diagnostics appended to {out_path}")
 
 
 def load_benchmarked_queries_from_zeroshot(
@@ -173,81 +120,9 @@ def load_benchmarked_queries_from_zeroshot(
     return queries
 
 
-def load_benchmarked_queries_from_zeroshot_with_diagnostics(
-    json_paths: list[Path],
-    use_actual_card: bool = True,
-) -> tuple[list[BenchmarkedQuery], list[dict]]:
-    """Like load_benchmarked_queries_from_zeroshot but also return per-file diagnostics.
-    Returns (queries, diagnostics) where each diagnostic dict has: path, plans_total, added,
-    skip_no_runtime, skip_exception, file_error (str or None if file loaded)."""
-    db = get_minimal_database()
-    queries: list[BenchmarkedQuery] = []
-    diagnostics: list[dict] = []
-    for jf in json_paths:
-        skip_no_runtime = 0
-        skip_exception = 0
-        added_this_file = 0
-        plans_total = 0
-        file_error: str | None = None
-        try:
-            data = load_zeroshot_json(jf)
-            plans = data.get("parsed_plans", [])
-            plans_total = len(plans)
-            for idx, zs_plan in enumerate(plans):
-                try:
-                    converted = zeroshot_plan_to_t3(zs_plan, use_actual_card=use_actual_card)
-                    runtime_sec = converted.get("plan_runtime_seconds")
-                    if runtime_sec is None or runtime_sec <= 0:
-                        skip_no_runtime += 1
-                        logger.warning(
-                            "Skipping plan %s_%s: no or invalid plan_runtime_seconds (got %s)",
-                            jf.stem,
-                            idx,
-                            runtime_sec,
-                        )
-                        continue
-                    plan = QueryPlan(converted, db, predicted_cardinalities=not use_actual_card)
-                    plan.build_pipelines(converted["analyzePlanPipelines"])
-                    name = f"{jf.stem}_{idx}" if len(plans) > 1 else jf.stem
-                    b = BenchmarkedQuery(plan, [runtime_sec], name, "", QueryCategory.fixed, plan_dict=converted)
-                    queries.append(b)
-                    added_this_file += 1
-                except Exception as e:
-                    skip_exception += 1
-                    logger.warning(
-                        "Skipping plan %s_%s: conversion or pipeline build failed: %s",
-                        jf.stem,
-                        idx,
-                        e,
-                        exc_info=True,
-                    )
-                    continue
-            if skip_no_runtime or skip_exception:
-                logger.info(
-                    "Loaded %s from %s: %s ok, %s skipped (no runtime), %s skipped (exception)",
-                    jf.name,
-                    added_this_file,
-                    skip_no_runtime,
-                    skip_exception,
-                )
-        except Exception as e:
-            file_error = f"{type(e).__name__}: {e}"
-            logger.warning("Failed to load file %s: %s", jf, e, exc_info=True)
-        diagnostics.append({
-            "path": str(jf),
-            "plans_total": plans_total,
-            "added": added_this_file,
-            "skip_no_runtime": skip_no_runtime,
-            "skip_exception": skip_exception,
-            "file_error": file_error,
-        })
-    return queries, diagnostics
-
-
 def train_per_tuple_model(
     queries: list[BenchmarkedQuery],
     seed: int = SEED,
-    verbose: bool = True,
     num_trees: int = 200,
 ) -> tuple[PerTupleTreeModel, lgb.Booster]:
     """Train per-tuple tree model on pipeline feature vectors (PG features for zeroshot). num_trees: number of boosting rounds."""
@@ -288,7 +163,7 @@ def train_per_tuple_model(
         y_val = np.maximum(y_val, 1e-15)
         y_val = -np.log(y_val)
 
-    param = {"objective": "mape", "verbose": 2 if verbose else -1}
+    param = {"objective": "mape", "verbose": -1}
     train_data = lgb.Dataset(
         x_train, label=y_train, feature_name=PgFeatureMapper.get_names(), params=param
     )
@@ -296,35 +171,8 @@ def train_per_tuple_model(
     bst = lgb.Booster(param, train_data)
     bst.add_valid(val_data, "val_data")
 
-    def _val_avg_q_error():
-        if not val_queries:
-            return float("nan")
-        model = PerTupleTreeModel(bst, feature_mapper=feature_mapper)
-        errors = [
-            q_error(q.get_total_runtime(), model.estimate_runtime(q))
-            for q in val_queries
-        ]
-        return float(np.mean(errors))
-
-    # Valid avg q-error during training (50, 100, 150, 200, ...) disabled; set LOG_VALID_QERROR_DURING_TRAINING=True to re-enable.
-    LOG_VALID_QERROR_DURING_TRAINING = False
-    if verbose:
-        if LOG_VALID_QERROR_DURING_TRAINING:
-            print("Initial:", bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
-        else:
-            print("Initial:", bst.eval_train(), bst.eval_valid())
     for i in range(num_trees):
         bst.update()
-        if verbose and (i + 1) % 50 == 0:
-            if LOG_VALID_QERROR_DURING_TRAINING:
-                print(i + 1, bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
-            else:
-                print(i + 1, bst.eval_train(), bst.eval_valid())
-    if verbose:
-        if LOG_VALID_QERROR_DURING_TRAINING:
-            print("Final:", bst.eval_train(), bst.eval_valid(), "valid_avg_q_error={:.4f}".format(_val_avg_q_error()))
-        else:
-            print("Final:", bst.eval_train(), bst.eval_valid())
     return PerTupleTreeModel(bst, feature_mapper=feature_mapper), bst
 
 
@@ -397,19 +245,13 @@ def main() -> None:
     print(f"Train (all except {args.holdout}): {len(train_paths)} files")
     print(f"Test ({args.holdout}): {len(test_paths)} files")
 
-    train_queries, train_diagnostics = load_benchmarked_queries_from_zeroshot_with_diagnostics(
+    train_queries = load_benchmarked_queries_from_zeroshot(
         train_paths, use_actual_card=use_actual_card
     )
     if not train_queries:
         print("Error: no train queries could be loaded.")
         sys.exit(1)
     print(f"Loaded {len(train_queries)} train benchmarks (plans)")
-
-    _append_training_diagnostics(
-        holdout=args.holdout,
-        diagnostics=train_diagnostics,
-        total_queries=len(train_queries),
-    )
 
     model, bst = train_per_tuple_model(train_queries, seed=args.seed)
     base_out = args.out if args.out.is_absolute() else _repo / args.out
