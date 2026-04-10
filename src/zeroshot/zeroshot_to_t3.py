@@ -2,7 +2,7 @@
 Map zero-shot parsed plan JSON (e.g. from zero-shot-data/runs/parsed_plans) to T3 format.
 
 - Converts nested plan_parameters/children structure to Umbra-style plan (operator, left/right/input,
-  analyzePlanId, cardinality, producedIUs, restrictions/residuals).
+  analyzePlanId, cardinality, producedIUs).
 - Splits into pipelines using breakers: Hash, Materialize, Sort, Aggregate (and join build side).
 - Generates feature vectors via T3 FeatureMapper and QueryPlan.
 
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from src.zeroshot.operator_stages_patch import apply_zeroshot_operator_stages_patch
 
@@ -49,84 +49,6 @@ def _get_start_stop_us(zs_node: dict) -> tuple[float, float]:
     return start_ms * 1000, total_ms * 1000
 
 
-def _filter_operator_to_expression(operator: str) -> tuple[str, Optional[str]]:
-    """Map zero-shot filter operator to T3 expression type and optional direction."""
-    if operator == "EQ":
-        return "compare", "="
-    if operator in ("GEQ", "GT"):
-        return "compare", ">=" if operator == "GEQ" else ">"
-    if operator in ("LEQ", "LT"):
-        return "compare", "<=" if operator == "LEQ" else "<"
-    if operator == "NEQ":
-        return "compare", "<>"
-    if operator == "LIKE":
-        return "like", None
-    if operator == "IN":
-        return "in", None
-    if operator == "BETWEEN":
-        return "between", None
-    if operator == "STARTSWITH":
-        return "startswith", None
-    if operator == "ISNOTNULL":
-        return "isnotnull", None
-    return "compare", "="
-
-
-def _convert_filter_columns_to_tree(filter_cols: dict) -> Optional[dict]:
-    """
-    Convert filter_columns tree (zero-shot: operator, children) to query_plan tree format
-    (expression, input). Does not flatten; returns a single nested dict.
-    Selectivity for features comes from QueryPlan._get_expression_selectivity defaults
-    (no estimatedSelectivity on nodes).
-    """
-    if not isinstance(filter_cols, dict):
-        return None
-
-    operator = (filter_cols.get("operator") or "").strip().upper()
-    children = filter_cols.get("children", [])
-
-    # AND / OR: recursive tree
-    if operator == "AND":
-        if not children:
-            return None
-        input_list = []
-        for child in children:
-            sub = _convert_filter_columns_to_tree(child)
-            if sub is not None:
-                input_list.append(sub)
-        if not input_list:
-            return None
-        return {"expression": "and", "input": input_list}
-
-    if operator == "OR":
-        if not children:
-            return None
-        input_list = []
-        for child in children:
-            sub = _convert_filter_columns_to_tree(child)
-            if sub is not None:
-                input_list.append(sub)
-        if not input_list:
-            return None
-        return {"expression": "or", "input": input_list}
-
-    # NOT: single child
-    if operator == "NOT":
-        if not children:
-            return None
-        sub = _convert_filter_columns_to_tree(children[0])
-        if sub is None:
-            return None
-        return {"expression": "not", "input": sub}
-
-    # Leaf: compare, like, in, between, etc.
-    expr_type, direction = _filter_operator_to_expression(operator)
-    node = {"expression": expr_type}
-    if direction is not None:
-        node["direction"] = direction
-    return node
-
-
 def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> dict:
     """Convert one zero-shot plan node to Umbra-style. Mutates next_id[0]."""
     if not zs_node or not zs_node.get("plan_parameters"):
@@ -156,22 +78,23 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
         out["pg"]["act_card"] = p.get("est_card", p.get("act_card", 1))
 
     # Scans
-    if op_name in ("Seq Scan", "Parallel Seq Scan", "Index Scan", "Index Only Scan"):
+    if op_name in (
+        "Seq Scan",
+        "Parallel Seq Scan",
+        "Index Scan",
+        "Index Only Scan",
+        "Parallel Index Scan",
+        "Parallel Index Only Scan",
+        "Bitmap Heap Scan",
+        "Parallel Bitmap Heap Scan",
+        "Bitmap Index Scan",
+    ):
         out["operator"] = "tablescan"
         out["tablename"] = "unknown"
         # Always use 1 for scan input cardinality (parsed_plans do not contain input cardinality due to PG iterator-based approach).
         # Model will just adapt to this in training and use other features to predict the runtime.
         # Future work could include adding the input cardinality to the parsed plans.
         out["inputCardinality"] = 1
-        fc = p.get("filter_columns")
-        if isinstance(fc, dict):
-            tree = _convert_filter_columns_to_tree(fc)
-            if tree is not None:
-                out["restrictions"].append(tree)
-        elif fc is not None:
-            # Legacy: simple filter_columns (e.g. just column name)
-            out["restrictions"].append({"expression": "compare", "direction": "="})
-
         return out
 
     # Hash Join: map so left=build (inner), right=probe (outer) to match Umbra operator_stages
@@ -230,7 +153,7 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
         return out
 
     # Pass-through
-    if op_name in ("Gather", "Memoize", "Limit", "Append", "Subquery Scan", "Bitmap Heap Scan", "Bitmap Index Scan"):
+    if op_name in ("Gather", "Gather Merge"):
         out["operator"] = "select"
         out["input"] = _convert_node(children[0], next_id, use_actual_card) if len(children) > 0 else _make_placeholder(next_id)
         return out
