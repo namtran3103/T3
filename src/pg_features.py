@@ -572,34 +572,14 @@ class PgFeatureMapper:
     @staticmethod
     def get_pipeline_scan_sizes(plan: dict) -> np.ndarray:
         """
-        Pipeline scan size for per-tuple target: sum of act_card of scan operators
-        in each pipeline. Used when converting per-tuple prediction back to runtime.
+        Pipeline scan size for per-tuple target and for converting per-tuple prediction
+        back to runtime. Experiment variant: 1.0 for every pipeline (no scan-card sum).
 
-        Umbra logic of simply using input/output cardinality can't be used as 
-        parsed_plans do not contain input cardinality due to PG iterator-based approach.
-        Non-scan pipelines will have a scan size of 1, this approach produced lowest q-errors in experiments, 
-        despite tuple logic being softened.
+        The previous implementation summed act_card of scan operators per pipeline (min 1);
+        restore that if you need the PG scan-based scaling again.
         """
         root_node = plan.get("plan")
         pipelines_list = plan.get("analyzePlanPipelines") or []
         if not root_node or not pipelines_list:
             return np.array([], dtype=float)
-
-        id_to_node: dict[int, dict] = {}
-        _collect_nodes_by_id(root_node, id_to_node)
-
-        result = []
-        for pl in pipelines_list:
-            op_ids = pl.get("operators") or []
-            scan_sum = 0.0
-            for nid in op_ids:
-                node = id_to_node.get(nid)
-                if node is None:
-                    continue
-                pg = node.get("pg") or {}
-                op_name = (pg.get("op_name") or "").strip()
-                if op_name in PG_OP_SCAN:
-                    act = pg.get("act_card", pg.get("est_card", 0))
-                    scan_sum += max(0, float(act))
-            result.append(max(1.0, scan_sum))  # avoid 0 for division
-        return np.array(result, dtype=float)
+        return np.ones(len(pipelines_list), dtype=float)
