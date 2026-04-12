@@ -29,7 +29,7 @@ from src.metrics import q_error
 from src.zeroshot.training_zeroshot_tpch_holdout import (
     load_benchmarked_queries_from_zeroshot,
     load_benchmarked_queries_from_zeroshot_with_diagnostics,
-    train_per_tuple_model,
+    train_zeroshot_pipeline_lightgbm,
     next_available_model_path,
     SEED,
 )
@@ -174,7 +174,7 @@ def main() -> None:
         mode="trainall_test_holdout",
     )
 
-    model, bst = train_per_tuple_model(
+    model, bst = train_zeroshot_pipeline_lightgbm(
         train_queries, seed=args.seed, verbose=not args.quiet
     )
 

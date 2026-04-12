@@ -120,23 +120,23 @@ def load_benchmarked_queries_from_zeroshot(
     return queries
 
 
-def train_per_tuple_model(
+def train_zeroshot_pipeline_lightgbm(
     queries: list[BenchmarkedQuery],
     seed: int = SEED,
     num_trees: int = 200,
 ) -> tuple[PerTupleTreeModel, lgb.Booster]:
-    """Train per-tuple tree model on pipeline feature vectors (PG features for zeroshot). num_trees: number of boosting rounds."""
-    feature_mapper = PgFeatureMapper()
-    # Split by query so validation q-error is per-query (total runtime vs total predicted), same as test set.
-    train_idx, val_idx = train_test_split(
-        np.arange(len(queries)), test_size=0.2, random_state=seed
-    )
-    train_queries = [queries[i] for i in train_idx]
-    val_queries = [queries[i] for i in val_idx]
+    """
+    Train LightGBM on PG pipeline feature rows, same train/val protocol as
+    optimize_per_tuple_tree_model (random 80/20 split over stacked pipeline rows).
 
+    Labels are taken from get_per_tuple_pipeline_runtime_data; with PgFeatureMapper,
+    get_pipeline_scan_sizes is all ones, so each label is the observed pipeline
+    duration (not a true per-tuple time). num_trees: boosting rounds.
+    """
+    feature_mapper = PgFeatureMapper()
     x_vectors = []
     y_values = []
-    for query in train_queries:
+    for query in queries:
         for x, y in query.get_per_tuple_pipeline_runtime_data(feature_mapper):
             if np.any(x != 0):
                 x_vectors.append(x)
@@ -145,23 +145,14 @@ def train_per_tuple_model(
         raise ValueError(
             "No pipeline rows with non-zero features. Check zero-shot plans and conversions."
         )
-    x_train = np.vstack(x_vectors)
-    y_train = np.array(y_values)
-    y_train = np.maximum(y_train, 1e-15)
-    y_train = -np.log(y_train)
+    x = np.vstack(x_vectors)
+    y = np.array(y_values)
+    y = np.maximum(y, 1e-15)
+    y = -np.log(y)
 
-    x_val_vec = []
-    y_val_vec = []
-    for query in val_queries:
-        for x, y in query.get_per_tuple_pipeline_runtime_data(feature_mapper):
-            if np.any(x != 0):
-                x_val_vec.append(x)
-                y_val_vec.append(y)
-    x_val = np.vstack(x_val_vec) if x_val_vec else np.zeros((0, x_train.shape[1]))
-    y_val = np.array(y_val_vec) if y_val_vec else np.array([])
-    if len(y_val) > 0:
-        y_val = np.maximum(y_val, 1e-15)
-        y_val = -np.log(y_val)
+    x_train, x_val, y_train, y_val = train_test_split(
+        x, y, test_size=0.2, random_state=seed
+    )
 
     param = {"objective": "mape", "verbose": -1}
     train_data = lgb.Dataset(
@@ -212,7 +203,9 @@ def main() -> None:
         "--seed",
         type=int,
         default=SEED,
-        help=f"Random seed for internal train/val split during training (default: {SEED})",
+        help=(
+            f"Random seed for train/val split over pipeline rows (Umbra-core style; default: {SEED})"
+        ),
     )
     parser.add_argument(
         "--use-estimated-card",
@@ -253,7 +246,7 @@ def main() -> None:
         sys.exit(1)
     print(f"Loaded {len(train_queries)} train benchmarks (plans)")
 
-    model, bst = train_per_tuple_model(train_queries, seed=args.seed)
+    model, bst = train_zeroshot_pipeline_lightgbm(train_queries, seed=args.seed)
     base_out = args.out if args.out.is_absolute() else _repo / args.out
     out_path = next_available_model_path(_repo, base_out)
     bst.save_model(str(out_path))
