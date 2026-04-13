@@ -572,74 +572,14 @@ class PgFeatureMapper:
     @staticmethod
     def get_pipeline_scan_sizes(plan: dict) -> np.ndarray:
         """
-        Per-pipeline tuple count for per-tuple targets and predict × size.
+        Pipeline scan size for per-tuple target and for converting per-tuple prediction
+        back to runtime. Experiment variant: 1.0 for every pipeline (no scan-card sum).
 
-        If the pipeline contains any scan operator with PG cards, use the historical PG
-        aggregate: sum of act_card (est_card fallback) over scan ops, lower-bounded by 1.
-
-        Otherwise (no scan rows / zero sum), mirror Umbra core
-        ``Pipeline.get_pipeline_scan_cardinality``: take the first pipeline operator in
-        execution order (post-order leaf in the plan subtree); if it is Sort, an
-        Aggregate variant, Hash, or Materialize, use its output cardinality (act_card);
-        else use its input cardinality (child cards, same probe/build convention as
-        ``_extract_operator_features`` for joins).
+        The previous implementation summed act_card of scan operators per pipeline (min 1);
+        restore that if you need the PG scan-based scaling again.
         """
         root_node = plan.get("plan")
         pipelines_list = plan.get("analyzePlanPipelines") or []
         if not root_node or not pipelines_list:
             return np.array([], dtype=float)
-
-        id_to_node: dict[int, dict] = {}
-        _collect_nodes_by_id(root_node, id_to_node)
-
-        # Matches OperatorType.GroupBy, Sort, Temp in operator_stages.get_pipeline_scan_cardinality
-        breaker_first_ops = (
-            "Sort",
-            "Aggregate",
-            "Partial Aggregate",
-            "Finalize Aggregate",
-            "Hash",
-            "Materialize",
-        )
-
-        def _umbra_like_first_op_size(op_ids: list[int]) -> float:
-            ordered = _get_pipeline_ops_in_execution_order(op_ids, id_to_node, root_node)
-            if not ordered:
-                return 0.0
-            _, node = ordered[0]
-            pg = node.get("pg") or {}
-            op_name = (pg.get("op_name") or "").strip()
-            act_card = max(0, float(pg.get("act_card", pg.get("est_card", 0))))
-            left_card = _get_child_act_card(node, "left", id_to_node)
-            right_card = _get_child_act_card(node, "right", id_to_node)
-            input_card = _get_child_act_card(node, "input", id_to_node)
-            if op_name in ("Hash Join", "Merge Join"):
-                in_card = right_card
-            else:
-                in_card = input_card if input_card > 0 else left_card
-            if in_card <= 0 and op_name in PG_OP_SCAN:
-                in_card = act_card
-            if op_name in breaker_first_ops:
-                return float(act_card)
-            return float(in_card)
-
-        sizes: list[float] = []
-        for pl in pipelines_list:
-            op_ids = pl.get("operators") or []
-            scan_sum = 0.0
-            for nid in op_ids:
-                node = id_to_node.get(nid)
-                if node is None:
-                    continue
-                pg = node.get("pg") or {}
-                op_name = (pg.get("op_name") or "").strip()
-                if op_name in PG_OP_SCAN:
-                    scan_sum += max(
-                        0, float(pg.get("act_card", pg.get("est_card", 0)))
-                    )
-            if scan_sum > 0:
-                sizes.append(max(1.0, scan_sum))
-            else:
-                sizes.append(_umbra_like_first_op_size(op_ids))
-
-        return np.array(sizes, dtype=float)
+        return np.ones(len(pipelines_list), dtype=float)

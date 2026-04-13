@@ -119,7 +119,7 @@ def _convert_node(zs_node: dict, next_id: list[int], use_actual_card: bool) -> d
         out["right"] = _convert_node(outer, next_id, use_actual_card) if outer else _make_placeholder(next_id)
         return out
 
-    # Nested Loop: map to indexnljoin (left=probe/outer, right=build/inner) to match Umbra and pg_to_umbra.
+    # Nested Loop: map to indexnljoin (left=probe/outer, right=build/inner), no clear left/right separation like hash join, this order better performance.
     if op_name == "Nested Loop":
         out["operator"] = "join"
         out["physicalOperator"] = "indexnljoin"
