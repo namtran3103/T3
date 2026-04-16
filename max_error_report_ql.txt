@@ -1,0 +1,193 @@
+================================================================================
+MAX Q-ERROR QUERY INVESTIGATION
+================================================================================
+Model: model_zero_tpch_holdout_ql.txt
+Test set: tpc_h
+Total queries: 15000
+Q-error stats: min=1.0000 max=62.0932 avg=1.6131 p50=1.2034
+
+--------------------------------------------------------------------------------
+RANK 1: index_workload_100k_s2_c8220_890
+--------------------------------------------------------------------------------
+
+## Query-level summary
+
+  actual runtime (s):     15.816868
+  predicted runtime (s): 0.254728
+  q-error:                62.0932
+
+## Per-pipeline breakdown  (6 pipeline(s) summed into one query-level vector)
+
+### Pipeline 0  [summed]
+
+  pipelines summed:          6
+  actual runtime (s):        15.816868
+  predicted runtime (s):     0.254728
+
+  raw model output (log):    1.367559
+  per-tuple pred (exp(-x)):  2.547280e-01
+
+  Feature vector (all features):
+     0: pg_act_card_sum = 238784.0
+     1: pg_act_card_max = 205678.0
+     2: pg_est_cost_sum = 333993.48
+     3: pg_est_cost_max = 261603.88999999998
+     4: pg_est_startup_sum = 76386.26000000001
+     5: pg_workers_planned_sum = 12.0
+     6: pg_est_width_avg = 57.333333333333336
+     7: pg_num_scan = 4.0
+     8: pg_num_join = 3.0
+     9: pg_num_sort = 0.0
+    10: pg_num_agg = 1.0
+    11: pg_num_temp = 1.0
+    12: pg_num_select = 2.0
+    13: pg_scan_act_card_sum = 1893.0
+    14: pg_scan_has_filter = 2.0
+    15: pg_filter_and_count = 2.0
+    16: pg_filter_or_count = 0.0
+    17: pg_filter_compare_count = 3.0
+    18: pg_filter_like_count = 0.0
+    19: pg_filter_in_count = 0.0
+    20: pg_table_id_sum = 19.0
+    21: pg_pipeline_num_ops = 11.0
+    22: pg_pipeline_root_act_card = 6.0
+    23: Aggregate_const = 1.0
+    24: Aggregate_out_card = 1.0
+    25: Aggregate_out_size = 16.0
+    26: Aggregate_in_percentage = 54.0
+    27: Aggregate_out_percentage = 1.0
+    28: Bitmap_Heap_Scan_const = 0.0
+    29: Bitmap_Heap_Scan_in_card = 0.0
+    30: Bitmap_Heap_Scan_in_size = 0.0
+    31: Bitmap_Heap_Scan_out_percentage = 0.0
+    32: Bitmap_Heap_Scan_like_percentage = 0.0
+    33: Bitmap_Heap_Scan_compare_percentage = 0.0
+    34: Bitmap_Heap_Scan_in_expression_percentage = 0.0
+    35: Bitmap_Heap_Scan_or_exp_percentage = 0.0
+    36: Bitmap_Heap_Scan_empty_output = 0.0
+    37: Bitmap_Index_Scan_const = 0.0
+    38: Bitmap_Index_Scan_in_card = 0.0
+    39: Bitmap_Index_Scan_in_size = 0.0
+    40: Bitmap_Index_Scan_out_percentage = 0.0
+    41: Bitmap_Index_Scan_like_percentage = 0.0
+    42: Bitmap_Index_Scan_compare_percentage = 0.0
+    43: Bitmap_Index_Scan_in_expression_percentage = 0.0
+    44: Bitmap_Index_Scan_or_exp_percentage = 0.0
+    45: Bitmap_Index_Scan_empty_output = 0.0
+    46: Finalize_Aggregate_const = 0.0
+    47: Finalize_Aggregate_out_card = 0.0
+    48: Finalize_Aggregate_out_size = 0.0
+    49: Finalize_Aggregate_in_percentage = 0.0
+    50: Finalize_Aggregate_out_percentage = 0.0
+    51: Gather_const = 2.0
+    52: Gather_in_percentage = 6559.6
+    53: Gather_out_percentage = 19678.6
+    54: Gather_Merge_const = 0.0
+    55: Gather_Merge_in_percentage = 0.0
+    56: Gather_Merge_out_percentage = 0.0
+    57: Hash_const = 0.0
+    58: Hash_out_card = 0.0
+    59: Hash_out_size = 0.0
+    60: Hash_in_percentage = 0.0
+    61: Hash_Join_const = 0.0
+    62: Hash_Join_in_card = 0.0
+    63: Hash_Join_right_percentage = 0.0
+    64: Hash_Join_out_percentage = 0.0
+    65: Index_Only_Scan_const = 0.0
+    66: Index_Only_Scan_in_card = 0.0
+    67: Index_Only_Scan_in_size = 0.0
+    68: Index_Only_Scan_out_percentage = 0.0
+    69: Index_Only_Scan_like_percentage = 0.0
+    70: Index_Only_Scan_compare_percentage = 0.0
+    71: Index_Only_Scan_in_expression_percentage = 0.0
+    72: Index_Only_Scan_or_exp_percentage = 0.0
+    73: Index_Only_Scan_empty_output = 0.0
+    74: Index_Scan_const = 2.0
+    75: Index_Scan_in_card = 9.0
+    76: Index_Scan_in_size = 20.0
+    77: Index_Scan_out_percentage = 2.0
+    78: Index_Scan_like_percentage = 0.0
+    79: Index_Scan_compare_percentage = 0.5
+    80: Index_Scan_in_expression_percentage = 0.0
+    81: Index_Scan_or_exp_percentage = 0.0
+    82: Index_Scan_empty_output = 0.0
+    83: Materialize_const = 1.0
+    84: Materialize_out_card = 98378.0
+    85: Materialize_out_size = 8.0
+    86: Materialize_in_percentage = 98378.0
+    87: Merge_Join_const = 0.0
+    88: Merge_Join_in_card = 0.0
+    89: Merge_Join_right_percentage = 0.0
+    90: Merge_Join_out_percentage = 0.0
+    91: Nested_Loop_const = 3.0
+    92: Nested_Loop_in_percentage = 1716.3589963280294
+    93: Nested_Loop_right_card = 98387.0
+    94: Nested_Loop_out_percentage = 8192.883047735619
+    95: Parallel_Bitmap_Heap_Scan_const = 1.0
+    96: Parallel_Bitmap_Heap_Scan_in_card = 1634.0
+    97: Parallel_Bitmap_Heap_Scan_in_size = 4.0
+    98: Parallel_Bitmap_Heap_Scan_out_percentage = 1.0
+    99: Parallel_Bitmap_Heap_Scan_like_percentage = 0.0
+    100: Parallel_Bitmap_Heap_Scan_compare_percentage = 0.0
+    101: Parallel_Bitmap_Heap_Scan_in_expression_percentage = 0.0
+    102: Parallel_Bitmap_Heap_Scan_or_exp_percentage = 0.0
+    103: Parallel_Bitmap_Heap_Scan_empty_output = 0.0
+    104: Parallel_Index_Only_Scan_const = 0.0
+    105: Parallel_Index_Only_Scan_in_card = 0.0
+    106: Parallel_Index_Only_Scan_in_size = 0.0
+    107: Parallel_Index_Only_Scan_out_percentage = 0.0
+    108: Parallel_Index_Only_Scan_like_percentage = 0.0
+    109: Parallel_Index_Only_Scan_compare_percentage = 0.0
+    110: Parallel_Index_Only_Scan_in_expression_percentage = 0.0
+    111: Parallel_Index_Only_Scan_or_exp_percentage = 0.0
+    112: Parallel_Index_Only_Scan_empty_output = 0.0
+    113: Parallel_Index_Scan_const = 0.0
+    114: Parallel_Index_Scan_in_card = 0.0
+    115: Parallel_Index_Scan_in_size = 0.0
+    116: Parallel_Index_Scan_out_percentage = 0.0
+    117: Parallel_Index_Scan_like_percentage = 0.0
+    118: Parallel_Index_Scan_compare_percentage = 0.0
+    119: Parallel_Index_Scan_in_expression_percentage = 0.0
+    120: Parallel_Index_Scan_or_exp_percentage = 0.0
+    121: Parallel_Index_Scan_empty_output = 0.0
+    122: Parallel_Seq_Scan_const = 1.0
+    123: Parallel_Seq_Scan_in_card = 250.0
+    124: Parallel_Seq_Scan_in_size = 8.0
+    125: Parallel_Seq_Scan_out_percentage = 1.0
+    126: Parallel_Seq_Scan_like_percentage = 0.0
+    127: Parallel_Seq_Scan_compare_percentage = 0.6666666666666666
+    128: Parallel_Seq_Scan_in_expression_percentage = 0.0
+    129: Parallel_Seq_Scan_or_exp_percentage = 0.0
+    130: Parallel_Seq_Scan_empty_output = 0.0
+    131: Partial_Aggregate_const = 0.0
+    132: Partial_Aggregate_out_card = 0.0
+    133: Partial_Aggregate_out_size = 0.0
+    134: Partial_Aggregate_in_percentage = 0.0
+    135: Partial_Aggregate_out_percentage = 0.0
+    136: Seq_Scan_const = 0.0
+    137: Seq_Scan_in_card = 0.0
+    138: Seq_Scan_in_size = 0.0
+    139: Seq_Scan_out_percentage = 0.0
+    140: Seq_Scan_like_percentage = 0.0
+    141: Seq_Scan_compare_percentage = 0.0
+    142: Seq_Scan_in_expression_percentage = 0.0
+    143: Seq_Scan_or_exp_percentage = 0.0
+    144: Seq_Scan_empty_output = 0.0
+    145: Sort_const = 0.0
+    146: Sort_out_card = 0.0
+    147: Sort_out_size = 0.0
+    148: Sort_in_percentage = 0.0
+    149: Sort_out_percentage = 0.0
+    150: Other_const = 0.0
+    151: Other_in_percentage = 0.0
+    152: Other_out_percentage = 0.0
+
+
+## Full feature matrix (all pipelines before summing)
+
+  Pipeline 0: 1000 750 7.204e+04 3.657e+04 1000 2 8 1 0 0 0 0 1 250 1 1 0 2 0 0 6 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 250 8 1 0 0.6667 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  Pipeline 1: 1688 1634 7.51e+04 7.063e+04 2251 2 6 1 1 0 0 0 0 1634 0 0 0 0 0 0 2 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0.459 9.838e+04 0.03305 1 1634 4 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  Pipeline 2: 6541 6537 1.688e+04 1.688e+04 125.8 4 10 1 1 0 0 0 0 4 0 0 0 0 0 0 4 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 4 8 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 408.5 4 1634 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  Pipeline 3: 1.312e+05 9.838e+04 6.589e+04 3.345e+04 1252 4 9.333 1 1 0 0 0 1 5 1 1 0 1 0 0 7 3 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 6559 1.968e+04 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 5 12 1 0 0.5 0 0 0 0 0 0 0 0 0 0 0 1 1307 5 6559 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  Pipeline 4: 9.838e+04 9.838e+04 3.345e+04 3.345e+04 1126 0 8 0 0 0 0 1 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 9.838e+04 8 9.838e+04 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  Pipeline 5: 1 1 7.063e+04 7.063e+04 7.063e+04 0 16 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 1 1 1 16 54 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0

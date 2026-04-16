@@ -25,48 +25,13 @@ import lightgbm as lgb
 from src.metrics import q_error
 from src.model import PerTupleTreeModel
 from src.pg_features import PgFeatureMapper
-from src.query_plan import QueryPlan
 from src.zeroshot.training_zeroshot_tpch_holdout import load_benchmarked_queries_from_zeroshot
-from src.zeroshot.zeroshot_to_t3 import (
-    get_minimal_database,
-    load_zeroshot_json,
-    zeroshot_plan_to_t3,
-)
+from src.zeroshot.training_zeroshot_tpch_holdout_ql import estimate_runtime_query_level
 
 IMDB_FULL_DIR = "/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans/imdb_full"
 JOB_FULL_JSON = "job_full_c8220.json"
 MODEL_IMDB_FULL = "model_zero_holdout_imdb_full.txt"
 OUTPUT_FILE = "job_zero_t3_results.txt"
-
-
-def _run_diagnose(job_full_path: Path) -> None:
-    """Load job_full JSON and report per-plan why each plan loads or is skipped."""
-    data = load_zeroshot_json(job_full_path)
-    plans = data.get("parsed_plans", [])
-    print(f"File: {job_full_path.name} — {len(plans)} parsed_plans")
-    print("-" * 80)
-    db = get_minimal_database()
-    ok = 0
-    skip_no_runtime = 0
-    skip_exception = 0
-    for idx, zs_plan in enumerate(plans):
-        plan_runtime_raw = zs_plan.get("plan_runtime")
-        try:
-            converted = zeroshot_plan_to_t3(zs_plan, use_actual_card=True)
-            runtime_sec = converted.get("plan_runtime_seconds")
-            if runtime_sec is None or runtime_sec <= 0:
-                skip_no_runtime += 1
-                print(f"  [{idx}] SKIP (no runtime): plan_runtime={plan_runtime_raw!r} -> plan_runtime_seconds={runtime_sec}")
-                continue
-            plan = QueryPlan(converted, db, predicted_cardinalities=False)
-            plan.build_pipelines(converted["analyzePlanPipelines"])
-            ok += 1
-            print(f"  [{idx}] OK: plan_runtime={plan_runtime_raw} ms -> {runtime_sec:.6f}s")
-        except Exception as e:
-            skip_exception += 1
-            print(f"  [{idx}] SKIP (exception): plan_runtime={plan_runtime_raw!r} — {type(e).__name__}: {e}")
-    print("-" * 80)
-    print(f"Summary: {ok} ok, {skip_no_runtime} skipped (no/invalid runtime), {skip_exception} skipped (exception)")
 
 
 def main() -> None:
@@ -92,14 +57,18 @@ def main() -> None:
         help=f"Output file for results (default: {OUTPUT_FILE})",
     )
     parser.add_argument(
-        "--diagnose",
-        action="store_true",
-        help="Report per-plan load status (no model/eval); use to see why plans are skipped.",
-    )
-    parser.add_argument(
         "--use-estimated-card",
         action="store_true",
         help="Use estimated cardinalities (est_card) instead of actual; same feature names.",
+    )
+    parser.add_argument(
+        "--query-level",
+        action="store_true",
+        help=(
+            "Use query-level inference: sum all per-pipeline feature vectors into one "
+            "vector per query and predict total runtime directly. "
+            "Must match the --query-level flag used during training."
+        ),
     )
     args = parser.parse_args()
 
@@ -116,10 +85,6 @@ def main() -> None:
         sys.exit(1)
     json_paths = [job_full_path]
 
-    if args.diagnose:
-        _run_diagnose(job_full_path)
-        return
-
     model_path = args.model if args.model.is_absolute() else _repo / args.model
     if not model_path.is_file():
         print(f"Error: model file not found: {model_path}")
@@ -132,14 +97,18 @@ def main() -> None:
         print("Error: no queries could be loaded.")
         sys.exit(1)
 
+    feature_mapper = PgFeatureMapper()
     booster = lgb.Booster(model_file=str(model_path))
-    model = PerTupleTreeModel(booster, feature_mapper=PgFeatureMapper())
+    model = PerTupleTreeModel(booster, feature_mapper=feature_mapper)
 
     lines: list[str] = []
     errors: list[float] = []
 
     for b in queries:
-        pred = model.estimate_runtime(b)
+        if args.query_level:
+            pred = estimate_runtime_query_level(booster, b, feature_mapper)
+        else:
+            pred = model.estimate_runtime(b)
         actual = b.get_total_runtime()
         err = q_error(actual, pred)
         errors.append(err)

@@ -33,6 +33,7 @@ from src.zeroshot.training_zeroshot_tpch_holdout import (
     load_benchmarked_queries_from_zeroshot,
     split_train_test_by_holdout,
 )
+from src.zeroshot.training_zeroshot_tpch_holdout_ql import estimate_runtime_query_level
 from src.zeroshot.zeroshot_to_t3 import collect_all_zeroshot_jsons
 
 DEFAULT_DATA_DIR = Path("/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans")
@@ -43,11 +44,12 @@ def infer_test_set_from_model_path(model_path: Path) -> str | None:
     """Infer holdout name from model stem.
 
     Supports:
-      - model_zero_holdout_<name>_vN  -> name (e.g. model_zero_holdout_tpc_h_v5 -> tpc_h)
-      - model_zero_<name>_holdout_vN  -> name (e.g. model_zero_tpch_holdout_v2 -> tpc_h)
+      - model_zero_holdout_<name>[_ql][_vN]  -> name  (e.g. model_zero_holdout_tpc_h_v5, model_zero_holdout_tpc_h_ql)
+      - model_zero_<name>_holdout[_ql][_vN]  -> name  (e.g. model_zero_tpch_holdout_v2, model_zero_tpch_holdout_ql)
     """
     stem = model_path.stem
     stem = re.sub(r"_v\d+$", "", stem)
+    stem = re.sub(r"_ql$", "", stem)
 
     # model_zero_holdout_<name>
     prefix1 = "model_zero_holdout_"
@@ -62,6 +64,12 @@ def infer_test_set_from_model_path(model_path: Path) -> str | None:
         return _normalize_holdout_name(name) or None
 
     return None
+
+
+def is_query_level_model(model_path: Path) -> bool:
+    """Return True if the model filename contains the _ql suffix (after stripping version)."""
+    stem = re.sub(r"_v\d+$", "", model_path.stem)
+    return stem.endswith("_ql")
 
 
 def _normalize_holdout_name(name: str) -> str:
@@ -106,6 +114,15 @@ def main() -> None:
         default=1,
         help="Number of worst queries to dump (default: 1)",
     )
+    parser.add_argument(
+        "--query-level",
+        action="store_true",
+        default=None,
+        help=(
+            "Use query-level inference (sum pipeline features, predict once). "
+            "Auto-detected from model name (_ql suffix) if not provided."
+        ),
+    )
     args = parser.parse_args()
 
     model_path = args.model if args.model.is_absolute() else _repo / args.model
@@ -135,18 +152,26 @@ def main() -> None:
         print("No test queries loaded.", file=sys.stderr)
         sys.exit(1)
 
+    # Auto-detect query-level from model name unless explicitly set
+    use_query_level = args.query_level if args.query_level else is_query_level_model(model_path)
+
     # Load model with PgFeatureMapper (required for zeroshot models)
     fm = PgFeatureMapper()
     booster = lgb.Booster(model_file=str(model_path))
     model = PerTupleTreeModel(booster, feature_mapper=fm)
     feature_names = PgFeatureMapper.get_names()
 
+    print(f"Mode: {'query-level' if use_query_level else 'per-pipeline'}")
+
     # Compute q-errors for all queries
     errors = []
     preds = []
     actuals = []
     for b in queries:
-        pred = model.estimate_runtime(b)
+        if use_query_level:
+            pred = estimate_runtime_query_level(booster, b, fm)
+        else:
+            pred = model.estimate_runtime(b)
         actual = b.get_total_runtime()
         pred = max(1e-9, pred)
         err = q_error(actual, pred)
@@ -193,60 +218,81 @@ def main() -> None:
             "",
         ])
 
-        # Source info
-        if hasattr(b, "plan_dict") and b.plan_dict:
-            # Try to get source from plan if available
-            pass
-        lines.append("## Per-pipeline breakdown")
-        lines.append("")
-
-        # Get feature matrix and pipeline data
         x = b.get_feature_matrix(fm)
-        scan_sizes = fm.get_pipeline_scan_sizes(b.plan_dict) if b.plan_dict else np.ones(x.shape[0])
-        pred_pipeline = model.estimate_pipeline_runtime(b)
-        actual_pipeline = b.get_pipeline_runtimes()
 
-        # Per-tuple model: pred = exp(-log_pred) * scan_size; log_pred = tree.predict(x)
-        raw_log_pred = booster.predict(x).flatten()
-        per_tuple_pred = np.exp(-raw_log_pred)
+        if use_query_level:
+            # Collapse all pipelines into the single summed vector the model actually used
+            x_sum = np.sum(x, axis=0)
+            ql_raw = booster.predict(x_sum.reshape(1, -1)).flatten()[0]
+            ql_pred = np.exp(-ql_raw)
 
-        for i in range(x.shape[0]):
-            lines.append(f"### Pipeline {i}")
+            lines.extend([
+                f"## Per-pipeline breakdown  ({x.shape[0]} pipeline(s) summed into one query-level vector)",
+                "",
+                "### Pipeline 0  [summed]",
+                "",
+                f"  pipelines summed:          {x.shape[0]}",
+                f"  actual runtime (s):        {actual:.6f}",
+                f"  predicted runtime (s):     {ql_pred:.6f}",
+                "",
+                f"  raw model output (log):    {ql_raw:.6f}",
+                f"  per-tuple pred (exp(-x)):  {ql_pred:.6e}",
+                "",
+                "  Feature vector (all features):",
+            ])
+            lines.extend(format_feature_vector(x_sum, feature_names, indent="    "))
             lines.append("")
-            if i < len(scan_sizes):
-                lines.append(f"  scan_size (act_card sum): {scan_sizes[i]:.2f}")
-            if i < len(actual_pipeline):
-                lines.append(f"  actual runtime (s):       {actual_pipeline[i]:.6f}")
-            if i < len(pred_pipeline):
-                lines.append(f"  predicted runtime (s):    {pred_pipeline[i]:.6f}")
-            if i < len(actual_pipeline) and i < len(pred_pipeline) and actual_pipeline[i] > 0:
-                pipe_qerr = q_error(actual_pipeline[i], pred_pipeline[i])
-                pipe_abs_err = abs(actual_pipeline[i] - pred_pipeline[i])
-                lines.extend([
-                    f"  pipeline q-error:         {pipe_qerr:.4f}",
-                    f"  pipeline abs error (s):   {pipe_abs_err:.6f}",
-                    "",
-                ])
-            else:
+            lines.append("")
+            lines.append("## Full feature matrix (all pipelines before summing)")
+            lines.append("")
+            for i in range(x.shape[0]):
+                lines.append(f"  Pipeline {i}: " + " ".join(f"{v:.4g}" for v in x[i]))
+            lines.append("")
+        else:
+            scan_sizes = fm.get_pipeline_scan_sizes(b.plan_dict) if b.plan_dict else np.ones(x.shape[0])
+            actual_pipeline = b.get_pipeline_runtimes()
+            pred_pipeline = model.estimate_pipeline_runtime(b)
+            raw_log_pred = booster.predict(x).flatten()
+            per_tuple_pred = np.exp(-raw_log_pred)
+
+            lines.append("## Per-pipeline breakdown")
+            lines.append("")
+
+            for i in range(x.shape[0]):
+                lines.append(f"### Pipeline {i}")
+                lines.append("")
+                if i < len(scan_sizes):
+                    lines.append(f"  scan_size (act_card sum): {scan_sizes[i]:.2f}")
+                if i < len(actual_pipeline):
+                    lines.append(f"  actual runtime (s):       {actual_pipeline[i]:.6f}")
+                if i < len(pred_pipeline):
+                    lines.append(f"  predicted runtime (s):    {pred_pipeline[i]:.6f}")
+                if i < len(actual_pipeline) and i < len(pred_pipeline) and actual_pipeline[i] > 0:
+                    pipe_qerr = q_error(actual_pipeline[i], pred_pipeline[i])
+                    pipe_abs_err = abs(actual_pipeline[i] - pred_pipeline[i])
+                    lines.extend([
+                        f"  pipeline q-error:         {pipe_qerr:.4f}",
+                        f"  pipeline abs error (s):   {pipe_abs_err:.6f}",
+                        "",
+                    ])
+                else:
+                    lines.append("")
+                if i < len(raw_log_pred):
+                    lines.extend([
+                        f"  raw model output (log):    {raw_log_pred[i]:.6f}",
+                        f"  per-tuple pred (exp(-x)): {per_tuple_pred[i]:.6e}",
+                        "",
+                    ])
+                lines.append("  Feature vector (all features):")
+                lines.extend(format_feature_vector(x[i], feature_names, indent="    "))
                 lines.append("")
 
-            if i < len(raw_log_pred):
-                lines.extend([
-                    f"  raw model output (log):    {raw_log_pred[i]:.6f}",
-                    f"  per-tuple pred (exp(-x)): {per_tuple_pred[i]:.6e}",
-                    "",
-                ])
-
-            lines.append("  Feature vector (all features):")
-            lines.extend(format_feature_vector(x[i], feature_names, indent="    "))
             lines.append("")
-
-        lines.append("")
-        lines.append("## Full feature matrix (all pipelines)")
-        lines.append("")
-        for i in range(x.shape[0]):
-            lines.append(f"  Pipeline {i}: " + " ".join(f"{v:.4g}" for v in x[i]))
-        lines.append("")
+            lines.append("## Full feature matrix (all pipelines)")
+            lines.append("")
+            for i in range(x.shape[0]):
+                lines.append(f"  Pipeline {i}: " + " ".join(f"{v:.4g}" for v in x[i]))
+            lines.append("")
 
     report = "\n".join(lines)
 

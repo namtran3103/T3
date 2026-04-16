@@ -1,0 +1,4 @@
+Test set (imdb_full, 50799 queries): q-error avg=1.7939 p50=1.4879 p90=2.8840 min=1.0000 max=25.4734 model=model_zero_holdout_imdb_full_v61.txt
+Test set (imdb_full, 50799 queries): q-error avg=1.8240 p50=1.5209 p90=2.8986 min=1.0000 max=33.3098 model=model_zero_holdout_imdb_full_v62.txt
+Test set (imdb_full, 50799 queries): q-error avg=1.8240 p50=1.5209 p90=2.8986 min=1.0000 max=33.3098 model=model_zero_holdout_imdb_full_v62.txt
+Test set (tpc_h, 15000 queries): q-error avg=1.6131 p50=1.2034 p90=2.0213 min=1.0000 max=62.0932 model=model_zero_tpch_holdout_ql.txt

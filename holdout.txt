@@ -651,3 +651,17 @@ Test set (tpc_h, 15000 queries): q-error avg=2.2643 p50=1.7154 p90=4.1771 min=1.
 revert due to worse performance:
 
 Test set (tpc_h, 15000 queries): q-error avg=2.0837 p50=1.6244 p90=3.6580 min=1.0000 max=28.7781
+
+----test per query level:
+Test set (tpc_h, 15000 queries) [query-level]: q-error avg=1.6131 p50=1.2034 p90=2.0213 min=1.0000 max=62.0932 model=model_zero_tpch_holdout_ql.txt
+Test set (tpc_h, 15000 queries) [query-level]: q-error avg=2.0023 p50=1.3357 p90=3.5442 min=1.0000 max=41.5830 model=model_zero_tpch_holdout_ql_v1.txt est cards
+
+-- 
+
+Test set (imdb_full, 50799 queries) [query-level]: q-error avg=1.4034 p50=1.1993 p90=1.9751 min=1.0000 max=52.0516 model=model_zero_tpch_holdout_ql_v2.txt
+
+--now für job benchmark train imdb_full with est cards:
+Test set (imdb_full, 50799 queries) [query-level]: q-error avg=1.4667 p50=1.2382 p90=2.1235 min=1.0000 max=24.6580 model=model_zero_holdout_imdb_full_ql.txt
+
+
+full run:

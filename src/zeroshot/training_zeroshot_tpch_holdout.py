@@ -190,8 +190,8 @@ def main() -> None:
     parser.add_argument(
         "--out",
         type=Path,
-        default=Path(DEFAULT_MODEL_PATH),
-        help=f"Output model path (default: {DEFAULT_MODEL_PATH}; if exists, saves to _v1, _v2, ...)",
+        default=None,
+        help="Output model path (default: model_zero_holdout_<holdout>.txt; if exists, saves to _v1, _v2, ...)",
     )
     parser.add_argument(
         "--holdout",
@@ -213,6 +213,9 @@ def main() -> None:
         help="Use estimated cardinalities (est_card) instead of actual; same feature names.",
     )
     args = parser.parse_args()
+
+    if args.out is None:
+        args.out = Path(f"model_zero_holdout_{args.holdout}.txt")
 
     use_actual_card = not args.use_estimated_card
 
@@ -264,7 +267,7 @@ def main() -> None:
                 print(f"{b.name}: pred={pred:.6f}s actual={actual:.6f}s q_error={err:.4f}")
             summary = (
                 f"Test set ({args.holdout}, {len(test_queries)} queries): "
-                f"q-error avg={np.mean(errors):.4f} p50={np.median(errors):.4f} p90={np.percentile(errors, 90):.4f} min={min(errors):.4f} max={max(errors):.4f}"
+                f"q-error avg={np.mean(errors):.4f} p50={np.median(errors):.4f} p90={np.percentile(errors, 90):.4f} min={min(errors):.4f} max={max(errors):.4f} model={out_path.name}"
             )
             print(summary)
             holdout_path = _repo / "holdout.txt"

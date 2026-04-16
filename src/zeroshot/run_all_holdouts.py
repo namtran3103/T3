@@ -3,12 +3,14 @@ Run holdout training for every benchmark: train on all except one, test on that 
 
 All models are saved with versioning (base name or _v1, _v2, ...; no overwrite).
 Each run's test summary is appended to holdout.txt (no overwrite).
-Calls training_zeroshot_tpch_holdout with --holdout <name> and
---out model_zero_holdout_<name>.txt for every holdout, including imdb_full.
+Calls training_zeroshot_tpch_holdout (per-pipeline) or training_zeroshot_tpch_holdout_ql
+(query-level) with --holdout <name> and the appropriate --out model name.
 
 Usage (from T3 project root):
   python -m src.zeroshot.run_all_holdouts
   python -m src.zeroshot.run_all_holdouts --data /path/to/parsed_plans
+  python -m src.zeroshot.run_all_holdouts --query-level
+  python -m src.zeroshot.run_all_holdouts --query-level --use-estimated-card
 """
 
 from __future__ import annotations
@@ -64,6 +66,15 @@ def main() -> None:
         action="store_true",
         help="Use estimated cardinalities (est_card) instead of actual; same feature names, default is actual.",
     )
+    parser.add_argument(
+        "--query-level",
+        action="store_true",
+        help=(
+            "Use query-level training (sum all per-pipeline feature vectors per query). "
+            "Delegates to training_zeroshot_tpch_holdout_ql and names models "
+            "model_zero_holdout_<name>_ql.txt."
+        ),
+    )
     args = parser.parse_args()
 
     data_dir = args.data.resolve()
@@ -71,13 +82,20 @@ def main() -> None:
         print(f"Error: not a directory: {data_dir}")
         sys.exit(1)
 
+    training_module = (
+        "src.zeroshot.training_zeroshot_tpch_holdout_ql"
+        if args.query_level
+        else "src.zeroshot.training_zeroshot_tpch_holdout"
+    )
+
     holdout_txt = _repo / "holdout.txt"
     for i, holdout in enumerate(HOLDOUTS):
-        model_name = f"model_zero_holdout_{holdout}.txt"
+        suffix = "_ql" if args.query_level else ""
+        model_name = f"model_zero_holdout_{holdout}{suffix}.txt"
         cmd = [
             sys.executable,
             "-m",
-            "src.zeroshot.training_zeroshot_tpch_holdout",
+            training_module,
             "--data",
             str(data_dir),
             "--holdout",
