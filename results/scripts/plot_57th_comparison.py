@@ -1,0 +1,58 @@
+import os
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+
+matplotlib.rcParams['font.family'] = 'serif'
+
+MODELS  = ['T3 (Rieger, Neumann)', 'Zero Shot', 'Ours']
+VALUES  = [1.15, 1.15, 1.86]
+LABELS  = ['1.1', '1.1', '1.9']
+COLORS  = ['#4472C4', '#C0392B', '#27AE60']
+HATCHES = ['',        '//',       '\\\\']
+
+if __name__ == '__main__':
+    x = np.arange(len(MODELS))
+    width = 0.5
+
+    fig, ax = plt.subplots(figsize=(4, 4.5))
+
+    bars = []
+    for i, (model, val, label, color, hatch) in enumerate(
+            zip(MODELS, VALUES, LABELS, COLORS, HATCHES)):
+        bar = ax.bar(x[i], val, width, color=color, hatch=hatch,
+                     edgecolor='black', linewidth=0.6, zorder=3)
+        bars.append(bar)
+        ax.annotate(label,
+                    xy=(x[i], val),
+                    xytext=(0, 4),
+                    textcoords='offset points',
+                    ha='center', va='bottom',
+                    fontsize=10)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(['']*len(MODELS))
+    ax.set_xlabel('Model', fontsize=11)
+    ax.set_ylabel('JOB Q-Error (57th)', fontsize=11)
+    ax.set_ylim(1, max(VALUES) * 1.12)
+    ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+    ax.grid(axis='y', linestyle='--', alpha=0.4, zorder=0)
+    ax.set_axisbelow(True)
+
+    ax.legend(
+        handles=bars,
+        labels=MODELS,
+        loc='upper center',
+        bbox_to_anchor=(0.5, -0.15),
+        ncol=3,
+        frameon=True,
+        fontsize=10,
+    )
+
+    fig.tight_layout()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.dirname(script_dir)
+    out_path = os.path.join(data_dir, '57th_comparison.png')
+    fig.savefig(out_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f"Saved {out_path}")
