@@ -132,7 +132,7 @@ def main() -> None:
     summary = (
         f"Test set ({args.holdout}, {len(queries)} queries): "
         f"q-error avg={np.mean(errors):.4f} p50={np.median(errors):.4f} p90={np.percentile(errors, 90):.4f} "
-        f"min={min(errors):.4f} max={max(errors):.4f} model={model_path.name}"
+        f"model={model_path.name}"
     )
     print(summary)
 

@@ -302,11 +302,11 @@ class PgFeature(AutoNumber):
     so runtime prediction does not use target leakage from EXPLAIN ANALYZE times as inputs.
     """
 
-    # Cardinality (all ops in pipeline; actual only, with estimate fallback when act not available)
-    pg_act_card_sum = ()
-    pg_act_card_max = ()
+    # Cardinality
+    pg_card_sum = ()
+    pg_card_max = ()
 
-    # Planner cost (PostgreSQL est_cost / est_startup_cost; not actual runtime)
+    # Planner cost (PostgreSQL est_cost / est_startup_cost)
     pg_est_cost_sum = ()
     pg_est_cost_max = ()
     pg_est_startup_sum = ()
@@ -483,8 +483,8 @@ def _extract_pipeline_pg_features(
 
     # Fill vector in PgFeature enum order
     values = {
-        PgFeature.pg_act_card_sum: sum(act_cards),
-        PgFeature.pg_act_card_max: max(act_cards) if act_cards else 0,
+        PgFeature.pg_card_sum: sum(act_cards),
+        PgFeature.pg_card_max: max(act_cards) if act_cards else 0,
         PgFeature.pg_est_cost_sum: sum(est_costs),
         PgFeature.pg_est_cost_max: max(est_costs) if est_costs else 0,
         PgFeature.pg_est_startup_sum: sum(est_startups),
