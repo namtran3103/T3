@@ -1,3 +1,4 @@
+# To reproduce tuple-level results:
 # replace get_pipeline_scan_sizes in src/pg_features.py with this method and reproduce how you would reproduce pipeline-level results.
 
 

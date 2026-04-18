@@ -1,3 +1,6 @@
+# use p75 from act_act to match the other implementations
+
+
 import os
 import matplotlib
 import matplotlib.pyplot as plt
@@ -6,7 +9,7 @@ import numpy as np
 matplotlib.rcParams['font.family'] = 'serif'
 
 MODELS  = ['T3 (Rieger, Neumann)', 'Zero Shot', 'Ours']
-VALUES  = [1.15, 1.15, 1.86]
+VALUES  = [1.145, 1.148, 1.8641]
 LABELS  = ['1.1', '1.1', '1.9']
 COLORS  = ['#4472C4', '#C0392B', '#27AE60']
 HATCHES = ['',        '//',       '\\\\']
@@ -33,7 +36,7 @@ if __name__ == '__main__':
     ax.set_xticks(x)
     ax.set_xticklabels(['']*len(MODELS))
     ax.set_xlabel('Model', fontsize=11)
-    ax.set_ylabel('JOB Q-Error (57th)', fontsize=11)
+    ax.set_ylabel('JOB Q-Error (57th-best)', fontsize=11)
     ax.set_ylim(1, max(VALUES) * 1.12)
     ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
     ax.grid(axis='y', linestyle='--', alpha=0.4, zorder=0)
@@ -51,8 +54,7 @@ if __name__ == '__main__':
 
     fig.tight_layout()
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.dirname(script_dir)
-    out_path = os.path.join(data_dir, '57th_comparison.png')
+    out_path = os.path.join(script_dir, '57th_comparison.png')
     fig.savefig(out_path, dpi=150, bbox_inches='tight')
     plt.close(fig)
     print(f"Saved {out_path}")

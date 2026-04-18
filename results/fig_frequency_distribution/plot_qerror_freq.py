@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 matplotlib.rcParams['font.family'] = 'serif'
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-data_dir = os.path.dirname(script_dir)
 
-INPUT = os.path.join(data_dir, 'job_zero_t3_results_ql_act_0416.txt')
+INPUT = os.path.join(script_dir, '..', 'figs_job', 'act_act.txt')
+INPUT = os.path.normpath(INPUT)
 
 Q_ERROR_RE = re.compile(r'q_error=([\d.]+)')
 
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     ax.set_axisbelow(True)
 
     fig.tight_layout()
-    out = os.path.join(data_dir, 'job_zero_t3_results_ql_act_0416_freq.png')
+    out = os.path.join(script_dir, 'qerror_freq.png')
     fig.savefig(out, dpi=150, bbox_inches='tight')
     plt.close(fig)
     print(f"Saved {out}")

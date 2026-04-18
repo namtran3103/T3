@@ -40,8 +40,7 @@ if __name__ == '__main__':
     fig.tight_layout()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    out_dir = os.path.dirname(script_dir)
-    out_path = os.path.join(out_dir, 'query_runtime_hist.png')
+    out_path = os.path.join(script_dir, 'query_runtime_hist.png')
     fig.savefig(out_path, dpi=150, bbox_inches='tight')
     plt.close(fig)
     print(f"Saved {out_path}")
