@@ -10,9 +10,6 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 MODEL_DIR="$SCRIPT_DIR"
 OUTPUT="$MODEL_DIR/0_results.txt"
 
-# Clear previous results
-> "$OUTPUT"
-
 cd "$REPO_ROOT"
 
 for model_file in "$MODEL_DIR"/*.txt; do

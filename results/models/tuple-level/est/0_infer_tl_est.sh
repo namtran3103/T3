@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run pipeline-level inference with estimated cardinalities for all models in
+# Run tuple-level inference with estimated cardinalities for all models in
 # the same directory as this script and append results to 0_results.txt.
 
 set -euo pipefail

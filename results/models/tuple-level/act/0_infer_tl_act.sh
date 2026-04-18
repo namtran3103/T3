@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run pipeline-level inference with estimated cardinalities for all models in
+# Run tuple-level inference with actual cardinalities for all models in
 # the same directory as this script and append results to 0_results.txt.
 
 set -euo pipefail
@@ -21,7 +21,6 @@ for model_file in "$MODEL_DIR"/*.txt; do
     python -m src.zeroshot.inference_zeroshot_holdout \
         --holdout "$name" \
         --model "$model_file" \
-        --use-estimated-card \
         --out "$OUTPUT"
 done
 
