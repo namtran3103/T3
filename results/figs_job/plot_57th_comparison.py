@@ -1,4 +1,4 @@
-# use p75 from act_act to match the other implementations
+# use p75 from act_act to match the other implementations, t3 umbra value approximated from original paper figure 10
 
 
 import os
@@ -8,9 +8,9 @@ import numpy as np
 
 matplotlib.rcParams['font.family'] = 'serif'
 
-MODELS  = ['T3 (Rieger, Neumann)', 'Zero Shot', 'Ours']
-VALUES  = [1.145, 1.148, 1.8641]
-LABELS  = ['1.1', '1.1', '1.9']
+MODELS  = ['T3 (Rieger, Neumann)', 'ZeroShot', 'Ours']
+VALUES  = [1.145, 1.1483, 1.7877]
+LABELS  = ['1.1', '1.1', '1.8']
 COLORS  = ['#4472C4', '#C0392B', '#27AE60']
 HATCHES = ['',        '//',       '\\\\']
 
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     x = np.arange(len(MODELS))
     width = 0.5
 
-    fig, ax = plt.subplots(figsize=(4, 4.5))
+    fig, ax = plt.subplots(figsize=(4, 3))
 
     bars = []
     for i, (model, val, label, color, hatch) in enumerate(

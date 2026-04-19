@@ -41,7 +41,6 @@ DB_LABELS = {
     'geneea':         'Geneea',
     'genome':         'Genome',
     'hepatitis':      'Hepatitis',
-    'imdb':           'Imdb',
     'imdb_full':      'Imdb_full',
     'movielens':      'Movielens',
     'seznam':         'Seznam',
@@ -73,21 +72,23 @@ if __name__ == '__main__':
 
     n = len(dbs)
     x = np.arange(n)
-    width = 0.25
+    width = 0.22
 
-    fig, ax = plt.subplots(figsize=(max(10, n * 0.8), 5))
+    # A4 text width ≈ 6.3 in; use 6.5 × 3.2 so the figure fills \textwidth
+    fig, ax = plt.subplots(figsize=(6.5, 3.2))
 
     bar50 = ax.bar(x - width, p50s, width, color='#4472C4',
-                   edgecolor='black', linewidth=0.6, label='p50', zorder=3)
+                   edgecolor='black', linewidth=0.5, label='p50', zorder=3)
     bar90 = ax.bar(x,         p90s, width, color='#C0392B', hatch='//',
-                   edgecolor='black', linewidth=0.6, label='p90', zorder=3)
+                   edgecolor='black', linewidth=0.5, label='p90', zorder=3)
     barav = ax.bar(x + width, avgs, width, color='#27AE60', hatch='\\\\',
-                   edgecolor='black', linewidth=0.6, label='avg', zorder=3)
+                   edgecolor='black', linewidth=0.5, label='avg', zorder=3)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(dbs, rotation=45, ha='right', fontsize=9)
-    ax.set_ylabel('Q-Error', fontsize=11)
-    ax.set_xlabel('Database Instance', fontsize=11)
+    ax.set_xticklabels(dbs, rotation=55, ha='right', fontsize=7)
+    ax.set_ylabel('Q-Error', fontsize=9)
+    ax.set_xlabel('Database Instance', fontsize=9)
+    ax.tick_params(axis='y', labelsize=8)
     ax.set_ylim(bottom=1)
     ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
     ax.grid(axis='y', linestyle='--', alpha=0.4, zorder=0)
@@ -97,14 +98,15 @@ if __name__ == '__main__':
         handles=[bar50, bar90, barav],
         labels=['p50', 'p90', 'avg'],
         loc='upper center',
-        bbox_to_anchor=(0.5, -0.42),
+        bbox_to_anchor=(0.5, -0.52),
         ncol=3,
         frameon=True,
-        fontsize=10,
+        fontsize=9,
     )
 
     fig.tight_layout()
+    fig.subplots_adjust(bottom=0.38)
     out_path = os.path.join(SCRIPT_DIR, 'database_q.png')
-    fig.savefig(out_path, dpi=150, bbox_inches='tight')
+    fig.savefig(out_path, dpi=200, bbox_inches='tight')
     plt.close(fig)
     print(f"Saved {out_path}")

@@ -12,7 +12,6 @@ Test set (geneea, 15000 queries): q-error avg=2.8015 p50=1.9632 p90=4.8171 model
 Test set (genome, 14995 queries): q-error avg=2.0649 p50=1.6016 p90=3.4726 model=genome.txt
 Test set (hepatitis, 14989 queries): q-error avg=3.8976 p50=1.4430 p90=3.6613 model=hepatitis.txt
 Test set (imdb_full, 50799 queries): q-error avg=2.0080 p50=1.5461 p90=3.3050 model=imdb_full.txt
-Test set (imdb, 31426 queries): q-error avg=2.1597 p50=1.5844 p90=3.8392 model=imdb.txt
 Test set (movielens, 14999 queries): q-error avg=2.0246 p50=1.6953 p90=3.1071 model=movielens.txt
 Test set (seznam, 14994 queries): q-error avg=2.2835 p50=1.5772 p90=2.8536 model=seznam.txt
 Test set (ssb, 15000 queries): q-error avg=1.8128 p50=1.5460 p90=2.5985 model=ssb.txt

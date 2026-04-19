@@ -40,7 +40,6 @@ HOLDOUTS = [
     "geneea",
     "genome",
     "hepatitis",
-    "imdb",
     "imdb_full",
     "movielens",
     "seznam",

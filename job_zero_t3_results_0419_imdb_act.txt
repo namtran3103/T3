@@ -1,4 +1,3 @@
-model: /Users/namtran/Documents/Studium/TUM Studium Informatik/WiSe 2025:26/BA2/T3/results/models/query-level/act/imdb_full.txt
 job_full_c8220_0: pred=1.787174s actual=2.928099s q_error=1.6384
 job_full_c8220_1: pred=1.740838s actual=2.302204s q_error=1.3225
 job_full_c8220_2: pred=6.983560s actual=20.287203s q_error=2.9050
