@@ -827,3 +827,47 @@ Test set (walmart, 15000 queries): q-error avg=1.4067 p50=1.2282 p90=1.9955 min=
 
 TUPLE-Level, act:
 
+Test set (accidents, 14999 queries): q-error avg=1.9799 p50=1.7407 p90=3.2099 min=1.0000 max=24.8458 model=model_zero_holdout_accidents_v27.txt
+Test set (airline, 15000 queries): q-error avg=2.0847 p50=1.6992 p90=3.2923 min=1.0002 max=44.4196 model=model_zero_holdout_airline_v24.txt
+Test set (baseball, 15000 queries): q-error avg=2.6471 p50=1.6400 p90=3.4556 min=1.0000 max=3377.2101 model=model_zero_holdout_baseball_v23.txt
+Test set (basketball, 14998 queries): q-error avg=2.5440 p50=1.6526 p90=3.8327 min=1.0000 max=139.1508 model=model_zero_holdout_basketball_v22.txt
+Test set (carcinogenesis, 14934 queries): q-error avg=2.2022 p50=1.4988 p90=2.8987 min=1.0000 max=321.0908 model=model_zero_holdout_carcinogenesis_v21.txt
+Test set (consumer, 15000 queries): q-error avg=2.1335 p50=1.6996 p90=3.2227 min=1.0000 max=163.2711 model=model_zero_holdout_consumer_v21.txt
+Test set (credit, 14997 queries): q-error avg=1.7426 p50=1.4502 p90=2.3315 min=1.0001 max=138.8472 model=model_zero_holdout_credit_v21.txt
+Test set (employee, 14975 queries): q-error avg=1.6387 p50=1.3998 p90=2.5923 min=1.0000 max=11.8803 model=model_zero_holdout_employee_v21.txt
+Test set (fhnk, 14997 queries): q-error avg=1.7544 p50=1.4099 p90=2.7184 min=1.0000 max=152.1165 model=model_zero_holdout_fhnk_v21.txt
+Test set (financial, 14221 queries): q-error avg=1.5403 p50=1.3641 p90=2.1267 min=1.0000 max=8.7724 model=model_zero_holdout_financial_v21.txt
+Test set (geneea, 15000 queries): q-error avg=2.5119 p50=1.8692 p90=4.3894 min=1.0001 max=90.2170 model=model_zero_holdout_geneea_v21.txt
+Test set (genome, 14995 queries): q-error avg=2.0235 p50=1.6552 p90=3.2005 min=1.0000 max=78.7242 model=model_zero_holdout_genome_v21.txt
+Test set (hepatitis, 14989 queries): q-error avg=2.7910 p50=1.3957 p90=2.9561 min=1.0001 max=297.9315 model=model_zero_holdout_hepatitis_v20.txt
+Test set (imdb_full, 50799 queries): q-error avg=2.2710 p50=1.6489 p90=4.0689 min=1.0000 max=97.2296 model=model_zero_holdout_imdb_full_v65.txt
+Test set (movielens, 14999 queries): q-error avg=2.1304 p50=1.5449 p90=2.6861 min=1.0000 max=149.0197 model=model_zero_holdout_movielens_v21.txt
+Test set (seznam, 14994 queries): q-error avg=1.7463 p50=1.4602 p90=2.3772 min=1.0002 max=98.0296 model=model_zero_holdout_seznam_v21.txt
+Test set (ssb, 15000 queries): q-error avg=1.8504 p50=1.5275 p90=2.7898 min=1.0000 max=86.9667 model=model_zero_holdout_ssb_v21.txt
+Test set (tournament, 15000 queries): q-error avg=2.1893 p50=1.4557 p90=2.6625 min=1.0000 max=347.7165 model=model_zero_holdout_tournament_v21.txt
+Test set (tpc_h, 15000 queries): q-error avg=2.6790 p50=1.7091 p90=5.1851 min=1.0001 max=39.2670 model=model_zero_holdout_tpc_h_v21.txt
+Test set (walmart, 15000 queries): q-error avg=1.6653 p50=1.5363 p90=2.4191 min=1.0000 max=11.7927 model=model_zero_holdout_walmart_v21.txt
+
+
+TUPLE-LEVEL, est:
+
+Test set (accidents, 14999 queries): q-error avg=4.2011 p50=2.0602 p90=4.8818 min=1.0001 max=642.1745 model=model_zero_holdout_accidents_v28.txt
+Test set (airline, 15000 queries): q-error avg=2.4310 p50=1.8666 p90=4.1695 min=1.0001 max=67.4884 model=model_zero_holdout_airline_v25.txt
+Test set (baseball, 15000 queries): q-error avg=3.8333 p50=2.0866 p90=6.3650 min=1.0002 max=505.3781 model=model_zero_holdout_baseball_v24.txt
+Test set (basketball, 14998 queries): q-error avg=4.5824 p50=1.9078 p90=11.5014 min=1.0001 max=94.4985 model=model_zero_holdout_basketball_v23.txt
+Test set (carcinogenesis, 14934 queries): q-error avg=3.5786 p50=1.6955 p90=6.2821 min=1.0000 max=182.4730 model=model_zero_holdout_carcinogenesis_v22.txt
+Test set (consumer, 15000 queries): q-error avg=2.1226 p50=1.7307 p90=3.3189 min=1.0000 max=67.5393 model=model_zero_holdout_consumer_v22.txt
+Test set (credit, 14997 queries): q-error avg=1.9862 p50=1.4210 p90=3.1871 min=1.0000 max=107.2427 model=model_zero_holdout_credit_v22.txt
+Test set (employee, 14975 queries): q-error avg=1.9748 p50=1.4800 p90=3.0546 min=1.0000 max=30.0917 model=model_zero_holdout_employee_v22.txt
+Test set (fhnk, 14997 queries): q-error avg=2.4267 p50=1.7655 p90=4.4015 min=1.0000 max=62.0709 model=model_zero_holdout_fhnk_v22.txt
+Test set (financial, 14221 queries): q-error avg=1.6927 p50=1.4868 p90=2.4150 min=1.0001 max=40.1842 model=model_zero_holdout_financial_v22.txt
+Test set (geneea, 15000 queries): q-error avg=2.9715 p50=2.0326 p90=5.1707 min=1.0001 max=141.2145 model=model_zero_holdout_geneea_v22.txt
+Test set (genome, 14995 queries): q-error avg=1.9272 p50=1.5531 p90=3.0435 min=1.0003 max=61.4990 model=model_zero_holdout_genome_v22.txt
+Test set (hepatitis, 14989 queries): q-error avg=3.3356 p50=1.4078 p90=3.7279 min=1.0000 max=734.5496 model=model_zero_holdout_hepatitis_v21.txt
+Test set (imdb_full, 50799 queries): q-error avg=2.7125 p50=1.6898 p90=4.6625 min=1.0000 max=168.8433 model=model_zero_holdout_imdb_full_v66.txt
+Test set (movielens, 14999 queries): q-error avg=2.0458 p50=1.6713 p90=3.1733 min=1.0001 max=101.9965 model=model_zero_holdout_movielens_v22.txt
+Test set (seznam, 14994 queries): q-error avg=2.0218 p50=1.6091 p90=2.9277 min=1.0001 max=75.0464 model=model_zero_holdout_seznam_v22.txt
+Test set (ssb, 15000 queries): q-error avg=1.8667 p50=1.5729 p90=2.7827 min=1.0001 max=119.5195 model=model_zero_holdout_ssb_v22.txt
+Test set (tournament, 15000 queries): q-error avg=3.9667 p50=1.6098 p90=4.3904 min=1.0000 max=2676.3443 model=model_zero_holdout_tournament_v22.txt
+Test set (tpc_h, 15000 queries): q-error avg=4.5665 p50=2.0124 p90=9.3760 min=1.0000 max=85.2495 model=model_zero_holdout_tpc_h_v22.txt
+Test set (walmart, 15000 queries): q-error avg=1.6762 p50=1.5095 p90=2.3590 min=1.0001 max=33.0083 model=model_zero_holdout_walmart_v22.txt
