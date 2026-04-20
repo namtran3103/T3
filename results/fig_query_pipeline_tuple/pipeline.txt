@@ -1,1 +1,1 @@
-pipeline-level (act): 366323 queries across 21 holdouts | q-error avg=1.8980 p50=1.4570 p90=3.0274
+pipeline-level (act): 334897 queries across 20 holdouts | q-error avg=1.9248 p50=1.4658 p90=3.0444

@@ -1,1 +1,1 @@
-tuple-level (act): 366323 queries across 21 holdouts | q-error avg=2.1669 p50=1.5582 p90=3.2916
+tuple-level (act): 334897 queries across 20 holdouts | q-error avg=2.1252 p50=1.5538 p90=3.1914
