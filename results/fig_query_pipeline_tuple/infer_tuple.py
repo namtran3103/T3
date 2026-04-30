@@ -17,6 +17,13 @@ _repo = Path(__file__).resolve().parent.parent.parent
 if str(_repo) not in sys.path:
     sys.path.insert(0, str(_repo))
 
+# Apply tuple-level scan-size patch before any PgFeatureMapper usage.
+_patch_dir = _repo / "results" / "models" / "0_reproduction" / "tuple"
+if str(_patch_dir) not in sys.path:
+    sys.path.insert(0, str(_patch_dir))
+import patch_scan_sizes  # noqa: E402
+patch_scan_sizes.apply_patch()
+
 import numpy as np
 import lightgbm as lgb
 

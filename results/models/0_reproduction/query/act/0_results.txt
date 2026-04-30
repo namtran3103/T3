@@ -1,0 +1,4 @@
+[2026-04-30T09:48:08Z] holdout=accidents card=act n=14999 avg=1.3024 p50=1.1548 p90=1.6718 model=accidents.txt
+[2026-04-30T12:28:54Z] holdout=accidents card=act n=14999 avg=1.3024 p50=1.1548 p90=1.6718 model=accidents.txt
+[2026-04-30T12:53:26Z] holdout=airline card=act n=15000 avg=1.5007 p50=1.2757 p90=2.0313 model=airline.txt
+[2026-04-30T13:17:15Z] holdout=baseball card=act n=15000 avg=1.3668 p50=1.1919 p90=1.6512 model=baseball.txt

@@ -267,7 +267,7 @@ def main() -> None:
                 print(f"{b.name}: pred={pred:.6f}s actual={actual:.6f}s q_error={err:.4f}")
             summary = (
                 f"Test set ({args.holdout}, {len(test_queries)} queries): "
-                f"q-error avg={np.mean(errors):.4f} p50={np.median(errors):.4f} p90={np.percentile(errors, 90):.4f} min={min(errors):.4f} max={max(errors):.4f} model={out_path.name}"
+                f"q-error avg={np.mean(errors):.4f} p50={np.median(errors):.4f} p90={np.percentile(errors, 90):.4f} model={out_path.name}"
             )
             print(summary)
             holdout_path = _repo / "holdout.txt"

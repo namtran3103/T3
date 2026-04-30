@@ -1,8 +1,46 @@
-# To reproduce tuple-level results:
-# replace get_pipeline_scan_sizes in src/pg_features.py with this method and reproduce how you would reproduce pipeline-level results.
+"""
+Monkey-patch PgFeatureMapper.get_pipeline_scan_sizes for tuple-level experiments.
+
+The default implementation returns constant 1.0 per pipeline (pipeline-level variant).
+This module replaces it with the Umbra-like scan-cardinality version: sum of act_card
+across scan operators per pipeline, falling back to the first-operator cardinality when
+no scan operator is present.
+
+Call apply_patch() once at the top of any script that needs tuple-level behaviour,
+before any training or inference code runs.
+
+Importable from any script that adds this directory to sys.path:
+
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent
+                              / "models" / "0_reproduction" / "tuple"))
+    import patch_scan_sizes
+    patch_scan_sizes.apply_patch()
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import numpy as np
+
+_here = Path(__file__).resolve().parent          # 0_reproduction/tuple/
+_repo = _here.parent.parent.parent.parent  # T3 root
+if str(_repo) not in sys.path:
+    sys.path.insert(0, str(_repo))
+
+from src.pg_features import (
+    PG_OP_SCAN,
+    PgFeatureMapper,
+    _collect_nodes_by_id,
+    _get_child_act_card,
+    _get_pipeline_ops_in_execution_order,
+)
 
 
-def get_pipeline_scan_sizes(plan: dict) -> np.ndarray:
+def _tuple_level_get_pipeline_scan_sizes(plan: dict) -> np.ndarray:
     """
     Get the pipeline scan sizes for each pipeline.
     Look at the scan operators in the plan and get the sum of the act_card of the scan operators.
@@ -74,3 +112,10 @@ def get_pipeline_scan_sizes(plan: dict) -> np.ndarray:
             sizes.append(_umbra_like_first_op_size(op_ids))
 
     return np.array(sizes, dtype=float)
+
+
+def apply_patch() -> None:
+    """Replace PgFeatureMapper.get_pipeline_scan_sizes with the tuple-level implementation."""
+    PgFeatureMapper.get_pipeline_scan_sizes = staticmethod(
+        _tuple_level_get_pipeline_scan_sizes
+    )

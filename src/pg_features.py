@@ -336,7 +336,7 @@ class PgFeature(AutoNumber):
     pg_filter_like_count = ()
     pg_filter_in_count = ()
 
-    # Sum of parser `table` ids on scans in the pipeline (plan_parameters)
+    # Sum of parser `table` ids on scans in the pipeline (plan_parameters), useful if one table per pipeline is used (usual case), noisy when multiple tables per pipeline are used
     pg_table_id_sum = ()
 
     # Pipeline-level (structure; no observed pipeline duration in features)

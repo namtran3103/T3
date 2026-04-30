@@ -17,6 +17,12 @@ if __name__ == '__main__':
     q_errors = []
     with open(INPUT) as f:
         for line in f:
+            if line.startswith('model:'):
+                if q_errors:  # second block starts here
+                    break
+                continue
+            if line.startswith('Test set'):  # summary line ends the first block
+                break
             m = Q_ERROR_RE.search(line)
             if m:
                 q_errors.append(float(m.group(1)))
