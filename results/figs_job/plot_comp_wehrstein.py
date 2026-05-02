@@ -5,7 +5,7 @@ import numpy as np
 
 matplotlib.rcParams['font.family'] = 'serif'
 
-MODELS  = ['Our Implementation', 'T3 (for PG by Wehrstein et al.)']
+MODELS  = ['Our Model', 'T3 (for PG by Wehrstein et al.)']
 VALUES  = [2.4156, 4.07]
 LABELS  = ['2.42', '4.07']
 COLORS  = ['#4472C4', '#C0392B']
