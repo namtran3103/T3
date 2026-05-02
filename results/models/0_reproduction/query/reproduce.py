@@ -45,7 +45,7 @@ from src.zeroshot.training_zeroshot_tpch_holdout_ql import (
     train_query_level_lightgbm,
 )
 
-PARSED_PLANS_ROOT = "/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans"
+PARSED_PLANS_ROOT = _repo / "zero-shot-data" / "runs" / "parsed_plans"
 
 HOLDOUTS = [
     "accidents",

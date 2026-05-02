@@ -1,9 +1,0 @@
-[2026-04-30T12:42:19Z] holdout=accidents card=est n=14999 avg=2.3284 p50=1.2415 p90=4.0515 model=accidents.txt
-[2026-04-30T13:08:50Z] holdout=airline card=est n=15000 avg=1.7669 p50=1.3657 p90=2.2244 model=airline.txt
-[2026-04-30T13:31:28Z] holdout=baseball card=est n=15000 avg=3.3864 p50=1.5949 p90=6.2098 model=baseball.txt
-[2026-04-30T14:00:06Z] holdout=basketball card=est n=14998 avg=4.7132 p50=1.5153 p90=10.5577 model=basketball.txt
-[2026-04-30T14:27:01Z] holdout=carcinogenesis card=est n=14934 avg=1.9912 p50=1.4069 p90=3.3962 model=carcinogenesis.txt
-[2026-04-30T14:41:28Z] holdout=consumer card=est n=15000 avg=1.3470 p50=1.2163 p90=1.7863 model=consumer.txt
-[2026-04-30T15:03:21Z] holdout=credit card=est n=14997 avg=1.4560 p50=1.1993 p90=2.0894 model=credit.txt
-[2026-04-30T15:36:41Z] holdout=employee card=est n=14975 avg=1.3590 p50=1.1743 p90=1.9773 model=employee.txt
-[2026-04-30T16:19:10Z] holdout=fhnk card=est n=14997 avg=2.1654 p50=1.4537 p90=3.9244 model=fhnk.txt

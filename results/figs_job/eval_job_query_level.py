@@ -33,7 +33,7 @@ from src.pg_features import PgFeatureMapper
 from src.zeroshot.training_zeroshot_tpch_holdout import load_benchmarked_queries_from_zeroshot
 from src.zeroshot.training_zeroshot_tpch_holdout_ql import estimate_runtime_query_level
 
-IMDB_FULL_DIR = "/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans/imdb_full"
+IMDB_FULL_DIR = _repo / "zero-shot-data" / "runs" / "parsed_plans" / "imdb_full"
 JOB_FULL_JSON = "job_full_c8220.json"
 
 SCRIPT_DIR = Path(__file__).resolve().parent

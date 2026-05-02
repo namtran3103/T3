@@ -1,21 +1,22 @@
-import os
-import glob
 import json
+import os
+from pathlib import Path
+
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
 matplotlib.rcParams['font.family'] = 'serif'
 
-PARSED_PLANS_DIR = '/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans'
+_REPO = Path(__file__).resolve().parents[2]
+PARSED_PLANS_DIR = _REPO / "zero-shot-data" / "runs" / "parsed_plans"
 
 if __name__ == '__main__':
     runtimes_sec = []
-    for db_dir in sorted(os.listdir(PARSED_PLANS_DIR)):
-        db_path = os.path.join(PARSED_PLANS_DIR, db_dir)
-        if not os.path.isdir(db_path):
+    for db_path in sorted(PARSED_PLANS_DIR.iterdir()):
+        if not db_path.is_dir():
             continue
-        for json_file in glob.glob(os.path.join(db_path, '*.json')):
+        for json_file in sorted(db_path.glob("*.json")):
             with open(json_file) as f:
                 data = json.load(f)
             for plan in data['parsed_plans']:

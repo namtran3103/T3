@@ -23,3 +23,5 @@ sql
 webserver
 lleaves.o
 .test_deps/
+/zero-shot-data/
+results/models/0_reproduction/tuple/__pycache__

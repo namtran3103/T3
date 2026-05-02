@@ -44,7 +44,7 @@ from src.zeroshot.zeroshot_to_t3 import (
 
 SEED = 42
 HOLDOUT_BENCHMARK = "tpc_h"
-DEFAULT_DATA_DIR = "/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans"
+DEFAULT_DATA_DIR = _repo / "zero-shot-data" / "runs" / "parsed_plans"
 DEFAULT_MODEL_PATH = "model_zero_tpch_holdout.txt"
 
 

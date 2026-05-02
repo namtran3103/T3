@@ -38,7 +38,7 @@ from src.zeroshot.zeroshot_to_t3 import collect_all_zeroshot_jsons
 DIAGNOSTICS_FILE = "diagnostics_training.txt"
 DEFAULT_HOLDOUT = "imdb_full"
 DEFAULT_MODEL_PREFIX = "model_overfit"
-DEFAULT_DATA_DIR = "/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans"
+DEFAULT_DATA_DIR = _repo / "zero-shot-data" / "runs" / "parsed_plans"
 
 
 def get_holdout_paths(all_paths: list[Path], holdout_name: str) -> list[Path]:

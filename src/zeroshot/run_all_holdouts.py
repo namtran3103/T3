@@ -25,7 +25,7 @@ if str(_repo) not in sys.path:
     sys.path.insert(0, str(_repo))
 
 # Hardcoded list of holdout names (benchmark folders under parsed_plans)
-PARSED_PLANS_ROOT = "/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans"
+PARSED_PLANS_ROOT = _repo / "zero-shot-data" / "runs" / "parsed_plans"
 HOLDOUTS = [
     "accidents",
     "airline",

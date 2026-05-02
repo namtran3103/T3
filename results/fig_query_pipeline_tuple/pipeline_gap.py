@@ -15,7 +15,7 @@ sys.path.insert(0, str(_repo))
 from src.zeroshot.zeroshot_to_t3 import load_zeroshot_json, zeroshot_plan_to_t3
 from src.zeroshot.training_zeroshot_tpch_holdout import load_benchmarked_queries_from_zeroshot
 
-FILE = Path("/Users/namtran/Downloads/zero-shot-data/runs/parsed_plans/tpc_h/workload_100k_s1_c8220.json")
+FILE = _repo / "zero-shot-data" / "runs" / "parsed_plans" / "tpc_h" / "workload_100k_s1_c8220.json"
 PLAN_IDX = 2
 
 
